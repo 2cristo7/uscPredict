@@ -14,6 +14,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpStatus;
 
+import java.time.LocalDateTime;
+import java.util.Map;
 import java.util.Set;
 
 @RestController
@@ -49,6 +51,16 @@ class UserController {
         } else {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
+    }
+
+    // Función get de prueba para comprobar que el servidor funciona
+    @GetMapping("/health")
+    public Map<String, Object> getHealthStatus() {
+        return Map.of(
+                "status", "OK",
+                "service", "USC Predict",
+                "timestamp", LocalDateTime.now().toString()
+        );
     }
 
     @PostMapping

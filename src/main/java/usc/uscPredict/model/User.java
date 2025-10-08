@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Setter;
+import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -35,7 +36,8 @@ public class User {
     private Role role;
 
     @Column(nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    @CreationTimestamp
+    private LocalDateTime created_at;
 
     // --- Constructor vacío (requerido por JPA)
     public User() {}
@@ -51,7 +53,7 @@ public class User {
     // --- Callback: se ejecuta justo antes de insertar en BD
     @PrePersist
     public void prePersist() {
-        this.createdAt = LocalDateTime.now();
+        this.created_at = LocalDateTime.now();
     }
 
     // --- Getters ---
@@ -75,7 +77,7 @@ public class User {
         return role;
     }
 
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
+    public LocalDateTime getCreated_at() {
+        return created_at;
     }
 }
