@@ -50,7 +50,7 @@ public class UserService {
     }
 
     public User addUser(@NonNull User user) {
-        return user;
+        return users.save(user);
     }
 
     public User getUserByName(@Nullable String name) throws PredictUsernameNotFoundException {
