@@ -64,17 +64,19 @@ public class OrderController {
      * @return 201 CREATED with created order, or 400 BAD REQUEST
      */
     @PostMapping
-    public ResponseEntity<Order> createOrder(@RequestBody @Valid @NonNull Order order) {
+    public ResponseEntity<?> createOrder(@RequestBody @Valid @NonNull Order order) {
         try {
             Order created = orderService.createOrder(order);
             if (created != null) {
                 return new ResponseEntity<>(created, HttpStatus.CREATED);
             } else {
-                return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+                return ResponseEntity.badRequest().body("User or Market not found");
             }
         } catch (IllegalStateException e) {
             // Handle business logic errors (insufficient funds, invalid market, etc.)
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 
@@ -185,38 +187,5 @@ public class OrderController {
             @PathVariable OrderState state) {
         Set<Order> orders = orderService.getOrdersByMarketIdAndState(marketId, state);
         return new ResponseEntity<>(orders, HttpStatus.OK);
-    }
-
-    /**
-     * POST /orders/market/{marketId}/match
-     * Triggers the matching engine for a specific market.
-     * This attempts to match pending buy and sell orders.
-     * @param marketId The market UUID
-     * @return 200 OK with number of matches executed
-     */
-    @PostMapping("/market/{marketId}/match")
-    public ResponseEntity<MatchResult> matchOrders(@PathVariable UUID marketId) {
-        int matchCount = orderService.matchOrders(marketId);
-        MatchResult result = new MatchResult(matchCount);
-        return new ResponseEntity<>(result, HttpStatus.OK);
-    }
-
-    /**
-     * Inner class for match result response.
-     */
-    public static class MatchResult {
-        private int matchesExecuted;
-
-        public MatchResult(int matchesExecuted) {
-            this.matchesExecuted = matchesExecuted;
-        }
-
-        public int getMatchesExecuted() {
-            return matchesExecuted;
-        }
-
-        public void setMatchesExecuted(int matchesExecuted) {
-            this.matchesExecuted = matchesExecuted;
-        }
     }
 }

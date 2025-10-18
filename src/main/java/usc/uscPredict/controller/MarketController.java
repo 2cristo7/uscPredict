@@ -171,6 +171,20 @@ public class MarketController {
     }
 
     /**
+     * POST /markets/{uuid}/match
+     * Triggers the matching engine for a specific market.
+     * This attempts to match pending buy and sell orders.
+     * @param uuid The market UUID
+     * @return 200 OK with number of matches executed
+     */
+    @PostMapping("/{uuid}/match")
+    public ResponseEntity<MatchResult> matchOrders(@PathVariable UUID uuid) {
+        int matchCount = marketService.matchOrders(uuid);
+        MatchResult result = new MatchResult(matchCount);
+        return new ResponseEntity<>(result, HttpStatus.OK);
+    }
+
+    /**
      * Inner class for status change requests.
      * Used for PATCH /markets/{uuid}/status endpoint.
      */
@@ -183,6 +197,25 @@ public class MarketController {
 
         public void setStatus(MarketStatus status) {
             this.status = status;
+        }
+    }
+
+    /**
+     * Inner class for match result response.
+     */
+    public static class MatchResult {
+        private int matchesExecuted;
+
+        public MatchResult(int matchesExecuted) {
+            this.matchesExecuted = matchesExecuted;
+        }
+
+        public int getMatchesExecuted() {
+            return matchesExecuted;
+        }
+
+        public void setMatchesExecuted(int matchesExecuted) {
+            this.matchesExecuted = matchesExecuted;
         }
     }
 }

@@ -4,12 +4,12 @@ import lombok.Getter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import usc.uscPredict.model.Order;
-import usc.uscPredict.model.OrderState;
+import usc.uscPredict.model.*;
 import usc.uscPredict.repository.MarketRepository;
 import usc.uscPredict.repository.OrderRepository;
 import usc.uscPredict.repository.UserRepository;
 
+import java.math.BigDecimal;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -25,15 +25,21 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
     private final MarketRepository marketRepository;
+    private final WalletService walletService;
+    private final MarketService marketService;
 
     @Autowired
     public OrderService(
             OrderRepository orderRepository,
             UserRepository userRepository,
-            MarketRepository marketRepository) {
+            MarketRepository marketRepository,
+            WalletService walletService,
+            MarketService marketService) {
         this.orderRepository = orderRepository;
         this.userRepository = userRepository;
         this.marketRepository = marketRepository;
+        this.walletService = walletService;
+        this.marketService = marketService;
     }
 
     /**
@@ -56,7 +62,6 @@ public class OrderService {
 
     /**
      * Creates a new order (places an order).
-     * TODO: THIS IS WHERE YOUR MAIN LOGIC GOES
      * - Verify user exists and has sufficient wallet balance
      * - Lock funds in wallet
      * - Create transaction record
@@ -67,15 +72,54 @@ public class OrderService {
      */
     @Transactional
     public Order createOrder(Order order) {
-        // TODO: Implement order placement logic
         // 1. Validate user exists
+
+        if (!userRepository.existsById(order.getUserId())) {
+            throw new IllegalArgumentException("User not found with ID: " + order.getUserId());
+        }
+
         // 2. Validate market exists and is ACTIVE
+        if (!marketRepository.existsById(order.getMarketId())) {
+            throw new IllegalArgumentException("Market not found with ID: " + order.getMarketId());
+        }
+
         // 3. Calculate required funds (price * quantity)
+        BigDecimal requiredFunds = order.getPrice().multiply(BigDecimal.valueOf(order.getQuantity()));
+
         // 4. Check wallet has sufficient balance
+        Wallet wallet = walletService.getWalletByUserId(order.getUserId());
+
+        if (wallet.getBalance().compareTo(requiredFunds)<0) {
+            throw new IllegalStateException(
+                    String.format("Insufficient balance. Available: %s, Required: %s",
+                            wallet.getBalance(), requiredFunds)
+            );
+        }
+
         // 5. Lock funds in wallet
+        walletService.lockFunds(order.getUserId(), requiredFunds);
+
         // 6. Save order with state PENDING
+
+        order.setState(OrderState.PENDING);
         // 7. Create ORDER_PLACED transaction
-        // 8. Attempt to match with counter-orders (optional, can be async)
+
+        Transaction transaction = new Transaction(
+                order.getUserId(),
+                TransactionType.ORDER_PLACED,
+                requiredFunds
+        );
+        walletService.getTransactionService().createTransaction(transaction);
+
+        // 8. Save order in repository
+        orderRepository.save(order);
+
+        // 9. Call to marketService to attempt matching orders
+        Market market = marketRepository.findById(order.getMarketId()).orElse(null);
+        if (market != null && market.getStatus() == MarketStatus.ACTIVE) {
+            marketService.matchOrders(order.getMarketId());
+        }
+
 
         return orderRepository.save(order);
     }
@@ -108,7 +152,6 @@ public class OrderService {
 
     /**
      * Cancels an order.
-     * TODO: Implement cancellation logic:
      * - Unlock funds in wallet
      * - Create ORDER_CANCELLED transaction
      * - Refund any locked amounts
@@ -124,11 +167,25 @@ public class OrderService {
 
         Order order = orderOpt.get();
 
-        // TODO: Implement cancellation logic
         // 1. Check order is PENDING or PARTIALLY_FILLED
+        if (order.getState() != OrderState.PENDING &&
+                order.getState() != OrderState.PARTIALLY_FILLED) {
+            throw new IllegalStateException("Only PENDING or PARTIALLY_FILLED orders can be cancelled");
+        }
         // 2. Calculate locked amount for unfilled quantity
+        int unfilledQuantity = order.getQuantity()-order.getFilledQuantity();
+        BigDecimal lockedAmount = order.getPrice().multiply(BigDecimal.valueOf(unfilledQuantity));
+
         // 3. Unlock funds in wallet
+        walletService.unlockFunds(order.getUserId(), lockedAmount);
+
         // 4. Create ORDER_CANCELLED transaction
+        Transaction transaction = new Transaction(
+                order.getUserId(),
+                TransactionType.ORDER_CANCELLED,
+                lockedAmount
+        );
+
         // 5. Set state to CANCELLED
         order.setState(OrderState.CANCELLED);
 
@@ -187,52 +244,5 @@ public class OrderService {
      */
     public Set<Order> getOrderBook(UUID marketId) {
         return orderRepository.findByMarketIdAndState(marketId, OrderState.PENDING);
-    }
-
-    /**
-     * Matches orders for a specific market.
-     * TODO: THIS IS YOUR MATCHING ENGINE - IMPLEMENT YOUR CUSTOM LOGIC HERE
-     * Should find compatible BUY and SELL orders and execute trades.
-     * @param marketId The market UUID
-     * @return Number of matches executed
-     */
-    @Transactional
-    public int matchOrders(UUID marketId) {
-        // TODO: Implement order matching logic
-        // 1. Get all PENDING BUY orders for market, sorted by price DESC
-        // 2. Get all PENDING SELL orders for market, sorted by price ASC
-        // 3. Find matches where buy.price >= sell.price
-        // 4. For each match:
-        //    - Calculate fill quantity (min of both quantities)
-        //    - Update filledQuantity for both orders
-        //    - Transfer funds between wallets
-        //    - Update or create positions for both users
-        //    - Create ORDER_EXECUTED transactions
-        //    - Update order states (FILLED or PARTIALLY_FILLED)
-        // 5. Return count of matches
-
-        return 0; // Placeholder
-    }
-
-    /**
-     * Executes a trade between two orders.
-     * TODO: Implement trade execution logic
-     * @param buyOrder The buy order
-     * @param sellOrder The sell order
-     * @param quantity The quantity to trade
-     * @return true if successful
-     */
-    @Transactional
-    protected boolean executeTrade(Order buyOrder, Order sellOrder, int quantity) {
-        // TODO: Implement trade execution
-        // 1. Update filledQuantity for both orders
-        // 2. Calculate trade amount
-        // 3. Transfer funds from buyer's locked balance to seller's balance
-        // 4. Update/create positions for buyer (add shares)
-        // 5. Update/create positions for seller (subtract shares)
-        // 6. Create ORDER_EXECUTED transactions for both users
-        // 7. Update order states based on fill status
-
-        return false; // Placeholder
     }
 }

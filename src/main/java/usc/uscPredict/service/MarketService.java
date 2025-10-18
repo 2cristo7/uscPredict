@@ -4,11 +4,12 @@ import lombok.Getter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import usc.uscPredict.model.Market;
-import usc.uscPredict.model.MarketStatus;
+import usc.uscPredict.model.*;
 import usc.uscPredict.repository.EventRepository;
 import usc.uscPredict.repository.MarketRepository;
+import usc.uscPredict.repository.OrderRepository;
 
+import java.math.BigDecimal;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -23,11 +24,13 @@ public class MarketService {
 
     private final MarketRepository marketRepository;
     private final EventRepository eventRepository;
+    private final OrderRepository orderRepository;
 
     @Autowired
-    public MarketService(MarketRepository marketRepository, EventRepository eventRepository) {
+    public MarketService(MarketRepository marketRepository, EventRepository eventRepository, OrderRepository orderRepository) {
         this.marketRepository = marketRepository;
         this.eventRepository = eventRepository;
+        this.orderRepository = orderRepository;
     }
 
     /**
@@ -59,10 +62,25 @@ public class MarketService {
      */
     @Transactional
     public Market createMarket(Market market) {
-        // TODO: Implement business logic
+
+        Event event = eventRepository.findById(market.getEventId())
+                .orElseThrow(() -> new IllegalArgumentException("Event ID does not exist"));
         // - Verify eventId exists in database
+        if (!eventRepository.existsById(market.getEventId())) {
+            throw new IllegalArgumentException("Event ID does not exist");
+        }
         // - Check event state allows new markets
-        // - Validate outcome is not duplicate for this event
+        if (event.getState() != EventState.OPEN) {
+            throw new IllegalArgumentException("Cannot create market for non-OPEN event");
+        }
+        // - Check for duplicate markets for the same event or outcome
+        Set<Market> existingMarkets = marketRepository.findByEventId(market.getEventId());
+        for (Market existing : existingMarkets) {
+            if (existing.getOutcome().equalsIgnoreCase(market.getOutcome())) {
+                throw new IllegalArgumentException("Duplicate market outcome for this event");
+            }
+        }
+
         return marketRepository.save(market);
     }
 
@@ -178,5 +196,60 @@ public class MarketService {
         market.setStatus(MarketStatus.SETTLED);
 
         return marketRepository.save(market);
+    }
+
+    /**
+     * Matches orders for a specific market.
+     * TODO: THIS IS YOUR MATCHING ENGINE - IMPLEMENT YOUR CUSTOM LOGIC HERE
+     * Should find compatible BUY and SELL orders and execute trades.
+     * @param marketId The market UUID
+     * @return Number of matches executed
+     */
+    @Transactional
+    public int matchOrders(UUID marketId) {
+        // TODO: Implement order matching logic
+        Market market = marketRepository.findById(marketId)
+                .orElseThrow(() -> new IllegalArgumentException("Market ID does not exist"));
+
+        // 1. Get all PENDING BUY orders for market, sorted by price DESC
+        orderRepository.findByMarketIdAndState(marketId, OrderState.PENDING);
+
+
+
+
+        // 2. Get all PENDING SELL orders for market, sorted by price ASC
+        // 3. Find matches where buy.price >= sell.price
+        // 4. For each match:
+        //    - Calculate fill quantity (min of both quantities)
+        //    - Update filledQuantity for both orders
+        //    - Transfer funds between wallets
+        //    - Update or create positions for both users
+        //    - Create ORDER_EXECUTED transactions
+        //    - Update order states (FILLED or PARTIALLY_FILLED)
+        // 5. Return count of matches
+
+        return 0; // Placeholder
+    }
+
+    /**
+     * Executes a trade between two orders.
+     * TODO: Implement trade execution logic
+     * @param buyOrder The buy order
+     * @param sellOrder The sell order
+     * @param quantity The quantity to trade
+     * @return true if successful
+     */
+    @Transactional
+    protected boolean executeTrade(Order buyOrder, Order sellOrder, int quantity) {
+        // TODO: Implement trade execution
+        // 1. Update filledQuantity for both orders
+        // 2. Calculate trade amount
+        // 3. Transfer funds from buyer's locked balance to seller's balance
+        // 4. Update/create positions for buyer (add shares)
+        // 5. Update/create positions for seller (subtract shares)
+        // 6. Create ORDER_EXECUTED transactions for both users
+        // 7. Update order states based on fill status
+
+        return false; // Placeholder
     }
 }

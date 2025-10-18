@@ -55,12 +55,12 @@ public class Order {
     @NotNull
     @Min(value = 0, message = "Filled quantity cannot be negative")
     @Column(nullable = false)
-    private Integer filledQuantity;
+    private Integer filledQuantity = 0;
 
     @NotNull(message = "Order state cannot be null")
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private OrderState state;
+    private OrderState state = OrderState.PENDING;
 
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
