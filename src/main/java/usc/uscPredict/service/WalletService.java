@@ -288,6 +288,38 @@ public class WalletService {
     }
 
     /**
+     * Consumes locked funds from a user's wallet.
+     * The funds disappear (used to pay for shares in prediction markets).
+     * @param userId The user UUID
+     * @param amount The amount to consume from locked balance
+     * @return The updated wallet
+     */
+    @Transactional
+    public Wallet consumeLockedFunds(UUID userId, BigDecimal amount) {
+        // Validate amount
+        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Consume amount must be positive");
+        }
+
+        // Get wallet
+        Wallet wallet = getWalletByUserId(userId);
+
+        // Check sufficient locked balance
+        if (wallet.getLockedBalance().compareTo(amount) < 0) {
+            throw new IllegalStateException(
+                String.format("Insufficient locked balance to consume. Locked: %s, Required: %s",
+                    wallet.getLockedBalance(), amount)
+            );
+        }
+
+        // Remove from lockedBalance (funds are consumed)
+        wallet.setLockedBalance(wallet.getLockedBalance().subtract(amount));
+
+        // Save and return
+        return walletRepository.save(wallet);
+    }
+
+    /**
      * Gets the total balance (available + locked) for a user.
      * @param userId The user UUID
      * @return Total balance

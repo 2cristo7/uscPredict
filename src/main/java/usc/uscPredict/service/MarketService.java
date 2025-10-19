@@ -8,8 +8,10 @@ import usc.uscPredict.model.*;
 import usc.uscPredict.repository.EventRepository;
 import usc.uscPredict.repository.MarketRepository;
 import usc.uscPredict.repository.OrderRepository;
+import usc.uscPredict.repository.PositionRepository;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -25,12 +27,24 @@ public class MarketService {
     private final MarketRepository marketRepository;
     private final EventRepository eventRepository;
     private final OrderRepository orderRepository;
+    private final WalletService walletService;
+    private final TransactionService transactionService;
+    private final PositionRepository positionRepository;
 
     @Autowired
-    public MarketService(MarketRepository marketRepository, EventRepository eventRepository, OrderRepository orderRepository) {
+    public MarketService(
+            MarketRepository marketRepository,
+            EventRepository eventRepository,
+            OrderRepository orderRepository,
+            WalletService walletService,
+            TransactionService transactionService,
+            PositionRepository positionRepository) {
         this.marketRepository = marketRepository;
         this.eventRepository = eventRepository;
         this.orderRepository = orderRepository;
+        this.walletService = walletService;
+        this.transactionService = transactionService;
+        this.positionRepository = positionRepository;
     }
 
     /**
@@ -200,56 +214,165 @@ public class MarketService {
 
     /**
      * Matches orders for a specific market.
-     * TODO: THIS IS YOUR MATCHING ENGINE - IMPLEMENT YOUR CUSTOM LOGIC HERE
      * Should find compatible BUY and SELL orders and execute trades.
      * @param marketId The market UUID
      * @return Number of matches executed
      */
     @Transactional
     public int matchOrders(UUID marketId) {
-        // TODO: Implement order matching logic
         Market market = marketRepository.findById(marketId)
                 .orElseThrow(() -> new IllegalArgumentException("Market ID does not exist"));
 
         // 1. Get all PENDING BUY orders for market, sorted by price DESC
-        orderRepository.findByMarketIdAndState(marketId, OrderState.PENDING);
-
-
-
+        ArrayList<Order> buyOrders = new ArrayList<>(orderRepository.findByMarketIdAndSideAndStateOrderByPriceDesc(
+                marketId, OrderSide.BUY, OrderState.PENDING));
 
         // 2. Get all PENDING SELL orders for market, sorted by price ASC
-        // 3. Find matches where buy.price >= sell.price
-        // 4. For each match:
-        //    - Calculate fill quantity (min of both quantities)
-        //    - Update filledQuantity for both orders
-        //    - Transfer funds between wallets
-        //    - Update or create positions for both users
-        //    - Create ORDER_EXECUTED transactions
-        //    - Update order states (FILLED or PARTIALLY_FILLED)
-        // 5. Return count of matches
+        ArrayList<Order> sellOrders = new ArrayList<>(orderRepository.findByMarketIdAndSideAndStateOrderByPriceAsc(
+                marketId, OrderSide.SELL, OrderState.PENDING));
 
-        return 0; // Placeholder
+        // Early exit if no orders on one of the sides
+        if (buyOrders.isEmpty() || sellOrders.isEmpty()) {
+            return 0;
+        }
+
+        // Utility variables
+        int matchCount = 0;
+        int buyIndex = 0;
+        int sellIndex = 0;
+
+        // 3. Find matches where buy.price >= sell.price
+        while (buyIndex < buyOrders.size() && sellIndex < sellOrders.size()) {
+            Order buyOrder = buyOrders.get(buyIndex);
+            Order sellOrder = sellOrders.get(sellIndex);
+
+            // Check if match is possible
+            if (buyOrder.getPrice().compareTo(sellOrder.getPrice()) < 0) {
+                break;
+            }
+
+            // 4. Execute trade
+
+            // 4.1 Determine fill quantity
+            int buyRemaining = buyOrder.getQuantity() - buyOrder.getFilledQuantity();
+            int sellRemaining = sellOrder.getQuantity() - sellOrder.getFilledQuantity();
+            int quantityToFill = Math.min(buyRemaining, sellRemaining);
+
+            // 4.2 Determine execution price (use maker price)
+            BigDecimal executionPrice = (buyOrder.getCreatedAt().isBefore(sellOrder.getCreatedAt()))
+                    ? buyOrder.getPrice() : sellOrder.getPrice();
+
+            // 4.3 Calculate trade amount (in currency)
+            BigDecimal tradeAmount = executionPrice.multiply(BigDecimal.valueOf(quantityToFill));
+
+            // 4.4 Consume funds from both parties (both are buying their respective shares)
+            // YES buyer pays execution price for YES shares
+            // NO buyer pays (1 - execution price) for NO shares
+
+            // 4.4.1 Calculate and consume YES buyer's payment
+            BigDecimal buyerPayment = executionPrice.multiply(BigDecimal.valueOf(quantityToFill));
+            walletService.consumeLockedFunds(buyOrder.getUserId(), buyerPayment);
+
+            // 4.4.2 Refund YES buyer if they locked more than needed
+            BigDecimal buyerLockedForThisFill = buyOrder.getPrice()
+                    .multiply(BigDecimal.valueOf(quantityToFill));
+            BigDecimal buyerRefund = buyerLockedForThisFill.subtract(buyerPayment);
+            if (buyerRefund.compareTo(BigDecimal.ZERO) > 0) {
+                walletService.unlockFunds(buyOrder.getUserId(), buyerRefund);
+            }
+
+            // 4.4.3 Calculate and consume NO buyer's payment
+            BigDecimal sellerPayment = BigDecimal.ONE.subtract(executionPrice)
+                    .multiply(BigDecimal.valueOf(quantityToFill));
+            walletService.consumeLockedFunds(sellOrder.getUserId(), sellerPayment);
+
+            // 4.4.4 Refund NO buyer if they locked more than needed
+            BigDecimal sellerLockedForThisFill = BigDecimal.ONE.subtract(sellOrder.getPrice())
+                    .multiply(BigDecimal.valueOf(quantityToFill));
+            BigDecimal sellerRefund = sellerLockedForThisFill.subtract(sellerPayment);
+            if (sellerRefund.compareTo(BigDecimal.ZERO) > 0) {
+                walletService.unlockFunds(sellOrder.getUserId(), sellerRefund);
+            }
+
+            // 4.5 Update filled quantities
+            buyOrder.setFilledQuantity(buyOrder.getFilledQuantity() + quantityToFill);
+            sellOrder.setFilledQuantity(sellOrder.getFilledQuantity() + quantityToFill);
+
+            // 4.6 Update order states
+            if (buyOrder.getFilledQuantity().equals(buyOrder.getQuantity())) {
+                buyOrder.setState(OrderState.FILLED);
+            } else {
+                buyOrder.setState(OrderState.PARTIALLY_FILLED);
+            }
+
+            if (sellOrder.getFilledQuantity().equals(sellOrder.getQuantity())) {
+                sellOrder.setState(OrderState.FILLED);
+            } else {
+                sellOrder.setState(OrderState.PARTIALLY_FILLED);
+            }
+
+            // 4.7 Save updated orders
+            orderRepository.save(buyOrder);
+            orderRepository.save(sellOrder);
+
+            // 4.8 Create ORDER_EXECUTED transactions for both users
+            Transaction buyTransaction = new Transaction(
+                    buyOrder.getUserId(),
+                    TransactionType.ORDER_EXECUTED,
+                    tradeAmount
+            );
+
+            Transaction sellTransaction = new Transaction(
+                    sellOrder.getUserId(),
+                    TransactionType.ORDER_EXECUTED,
+                    tradeAmount
+            );
+
+            transactionService.createTransaction(buyTransaction);
+            transactionService.createTransaction(sellTransaction);
+
+            // 4.9 Update or create positions
+            updatePosition(buyOrder.getUserId(), marketId, quantityToFill, true);
+            updatePosition(sellOrder.getUserId(), marketId, quantityToFill, false);
+
+            // 4.10 Increment match count
+            matchCount++;
+
+            // 5 Advance indices
+            if (buyOrder.getState() == OrderState.FILLED) {
+                buyIndex++;
+            }
+
+            if (sellOrder.getState() == OrderState.FILLED) {
+                sellIndex++;
+            }
+
+        }
+
+        return matchCount;
     }
 
     /**
-     * Executes a trade between two orders.
-     * TODO: Implement trade execution logic
-     * @param buyOrder The buy order
-     * @param sellOrder The sell order
-     * @param quantity The quantity to trade
-     * @return true if successful
+     * Updates or creates a position for a user in a market.
+     * Adds shares to either YES or NO based on the order side.
+     *
+     * @param userId The user UUID
+     * @param marketId The market UUID
+     * @param quantity The number of shares to add
+     * @param isYes True if buying YES shares, false if buying NO shares
      */
-    @Transactional
-    protected boolean executeTrade(Order buyOrder, Order sellOrder, int quantity) {
-        // TODO: Implement trade execution
-        // 1. Update filledQuantity for both orders
-        // 2. Calculate trade amount
-        // 3. Transfer funds from buyer's locked balance to seller's balance
-        // 4. Update/create positions for buyer (add shares)
-        // 5. Update/create positions for seller (subtract shares)
-        // 6. Create ORDER_EXECUTED transactions for both users
-        // 7. Update order states based on fill status
+    private void updatePosition(UUID userId, UUID marketId, int quantity, boolean isYes) {
+        Position position = positionRepository
+                .findByUserIdAndMarketId(userId, marketId)
+                .orElse(new Position(userId, marketId));
 
-        return false; // Placeholder
+        // Update appropriate share type
+        if (isYes) {
+            position.setYesShares(position.getYesShares() + quantity);
+        } else {
+            position.setNoShares(position.getNoShares() + quantity);
+        }
+
+        positionRepository.save(position);
     }
 }

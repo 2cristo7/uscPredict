@@ -83,8 +83,18 @@ public class OrderService {
             throw new IllegalArgumentException("Market not found with ID: " + order.getMarketId());
         }
 
-        // 3. Calculate required funds (price * quantity)
-        BigDecimal requiredFunds = order.getPrice().multiply(BigDecimal.valueOf(order.getQuantity()));
+        // 3. Calculate required funds based on order side
+        BigDecimal requiredFunds;
+
+        if (order.getSide() == OrderSide.BUY) {
+            // BUY: User is buying YES shares, pays price * quantity
+            requiredFunds = order.getPrice().multiply(BigDecimal.valueOf(order.getQuantity()));
+        } else {
+            // SELL: User is buying NO shares, pays (1 - price) * quantity
+            // Since YES price + NO price = 1, NO price = 1 - YES price
+            BigDecimal noPrice = BigDecimal.ONE.subtract(order.getPrice());
+            requiredFunds = noPrice.multiply(BigDecimal.valueOf(order.getQuantity()));
+        }
 
         // 4. Check wallet has sufficient balance
         Wallet wallet = walletService.getWalletByUserId(order.getUserId());

@@ -19,6 +19,7 @@ import java.util.UUID;
 @Setter
 public class Transaction {
 
+    public static Object TransactionType;
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID uuid;

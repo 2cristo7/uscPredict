@@ -4,10 +4,28 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
+/**
+ * Position entity represents a user's holdings in a specific prediction market.
+ *
+ * Key concepts:
+ * - yesShares = Number of YES outcome shares owned
+ * - noShares = Number of NO outcome shares owned
+ * - Both are LONG positions (user paid for them upfront)
+ * - At settlement: YES shares pay $1 if event occurs, $0 otherwise
+ *                  NO shares pay $1 if event doesn't occur, $0 otherwise
+ *
+ * Example:
+ * - yesShares = 100, noShares = 0 → User bet on YES
+ * - yesShares = 0, noShares = 50 → User bet on NO
+ * - yesShares = 100, noShares = 50 → User hedged (owns both outcomes)
+ */
 @Entity
 @Table(name = "positions",
     uniqueConstraints = @UniqueConstraint(columnNames = {"userId", "marketId"}),
@@ -31,34 +49,80 @@ public class Position {
     @Column(nullable = false)
     private UUID marketId;
 
+    /**
+     * Number of YES outcome shares owned by the user.
+     * These pay $1 each if the event happens.
+     */
     @NotNull
     @Column(nullable = false)
-    private Integer quantity;
+    private Integer yesShares = 0;
 
+    /**
+     * Number of NO outcome shares owned by the user.
+     * These pay $1 each if the event does NOT happen.
+     */
     @NotNull
-    @Column(nullable = false, precision = 19, scale = 4)
-    private BigDecimal avgPrice;
+    @Column(nullable = false)
+    private Integer noShares = 0;
 
-    @NotNull
-    @Column(nullable = false, precision = 19, scale = 4)
-    private BigDecimal realizedPnl;
+    @CreationTimestamp
+    @Column(nullable = false, updatable = false)
+    private LocalDateTime createdAt;
 
-    @Column(precision = 19, scale = 4)
-    private BigDecimal unrealizedPnl;
+    @UpdateTimestamp
+    @Column(nullable = false)
+    private LocalDateTime updatedAt;
 
+    /**
+     * No-arg constructor required by JPA.
+     */
     public Position() {
-        this.quantity = 0;
-        this.avgPrice = BigDecimal.ZERO;
-        this.realizedPnl = BigDecimal.ZERO;
-        this.unrealizedPnl = BigDecimal.ZERO;
+        this.yesShares = 0;
+        this.noShares = 0;
     }
 
-    public Position(UUID userId, UUID marketId, Integer quantity, BigDecimal avgPrice) {
+    /**
+     * Constructor for creating a new position.
+     * @param userId The user UUID
+     * @param marketId The market UUID
+     */
+    public Position(UUID userId, UUID marketId) {
         this.userId = userId;
         this.marketId = marketId;
-        this.quantity = quantity;
-        this.avgPrice = avgPrice;
-        this.realizedPnl = BigDecimal.ZERO;
-        this.unrealizedPnl = BigDecimal.ZERO;
+        this.yesShares = 0;
+        this.noShares = 0;
+    }
+
+    /**
+     * Checks if user has any YES shares.
+     * @return true if yesShares > 0
+     */
+    public boolean hasYesShares() {
+        return yesShares > 0;
+    }
+
+    /**
+     * Checks if user has any NO shares.
+     * @return true if noShares > 0
+     */
+    public boolean hasNoShares() {
+        return noShares > 0;
+    }
+
+    /**
+     * Gets total shares owned (YES + NO).
+     * @return total number of shares
+     */
+    public int getTotalShares() {
+        return yesShares + noShares;
+    }
+
+    /**
+     * Gets net exposure (YES - NO).
+     * Positive = betting on YES, Negative = betting on NO, Zero = hedged
+     * @return net position
+     */
+    public int getNetExposure() {
+        return yesShares - noShares;
     }
 }
