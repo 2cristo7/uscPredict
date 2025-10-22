@@ -7,7 +7,6 @@ import org.springframework.transaction.annotation.Transactional;
 import usc.uscPredict.model.*;
 import usc.uscPredict.repository.MarketRepository;
 import usc.uscPredict.repository.OrderRepository;
-import usc.uscPredict.repository.UserRepository;
 
 import java.math.BigDecimal;
 import java.util.Optional;
@@ -16,30 +15,63 @@ import java.util.UUID;
 
 /**
  * Service layer for Order entity.
- * Handles business logic for order management and matching.
+ * Orchestrates order creation, cancellation, and retrieval operations.
+ *
+ * ARCHITECTURE DECISION: Separation of Concerns
+ * ==============================================
+ * This service acts as an ORCHESTRATOR, coordinating between:
+ * - OrderPersistenceService: Handles transactional order persistence
+ * - MarketService: Handles order matching logic
+ *
+ * WHY NOT HANDLE PERSISTENCE HERE?
+ * --------------------------------
+ * Order persistence is delegated to OrderPersistenceService to enable proper
+ * Spring @Transactional behavior. See OrderPersistenceService documentation
+ * for detailed explanation of the self-invocation problem.
+ *
+ * TRANSACTIONAL DESIGN:
+ * --------------------
+ * Order creation has TWO separate transactional phases:
+ *
+ * Phase 1 (OrderPersistenceService): Persist order
+ *   - Validate user/market
+ *   - Lock funds
+ *   - Save order as PENDING
+ *   - Create transaction record
+ *   → If fails: Complete rollback, order NOT created
+ *
+ * Phase 2 (MarketService): Attempt matching
+ *   - Match against existing orders
+ *   - Update positions if matched
+ *   → If fails: Order remains PENDING, can be matched later
+ *
+ * This separation ensures that valid orders are never lost due to matching failures.
+ *
+ * @see OrderPersistenceService - Handles transactional order persistence
+ * @see MarketService#matchOrders(UUID) - Handles order matching in separate transaction
  */
 @Getter
 @Service
 public class OrderService {
 
     private final OrderRepository orderRepository;
-    private final UserRepository userRepository;
     private final MarketRepository marketRepository;
     private final WalletService walletService;
     private final MarketService marketService;
+    private final OrderPersistenceService orderPersistenceService;
 
     @Autowired
     public OrderService(
             OrderRepository orderRepository,
-            UserRepository userRepository,
             MarketRepository marketRepository,
             WalletService walletService,
-            MarketService marketService) {
+            MarketService marketService,
+            OrderPersistenceService orderPersistenceService) {
         this.orderRepository = orderRepository;
-        this.userRepository = userRepository;
         this.marketRepository = marketRepository;
         this.walletService = walletService;
         this.marketService = marketService;
+        this.orderPersistenceService = orderPersistenceService;
     }
 
     /**
@@ -62,76 +94,86 @@ public class OrderService {
 
     /**
      * Creates a new order (places an order).
-     * - Verify user exists and has sufficient wallet balance
-     * - Lock funds in wallet
-     * - Create transaction record
-     * - Attempt to match with existing orders
-     * - Update positions if matched
-     * @param order The order to create
+     *
+     * DESIGN PATTERN: Two-Phase Orchestration
+     * ========================================
+     * This method orchestrates order creation in TWO independent transactional phases:
+     *
+     * PHASE 1: Order Persistence (Transactional)
+     * ------------------------------------------
+     * Delegates to OrderPersistenceService.persistOrder()
+     * - Validates user and market
+     * - Calculates and locks required funds
+     * - Saves order as PENDING
+     * - Creates transaction audit record
+     *
+     * Transaction boundary: Managed by OrderPersistenceService
+     * On failure: Complete rollback, order NOT created
+     * On success: Order exists in DB as PENDING, funds are locked
+     *
+     * PHASE 2: Order Matching (Separate Transaction)
+     * ----------------------------------------------
+     * Attempts to match the new order against existing orders via MarketService
+     * - Executed in a SEPARATE transaction (managed by MarketService)
+     * - Failures are caught and logged, but do NOT rollback Phase 1
+     *
+     * Transaction boundary: Managed by MarketService.matchOrders()
+     * On failure: Order remains PENDING, can be matched later manually
+     * On success: Order state updated to FILLED/PARTIALLY_FILLED
+     *
+     * WHY TWO PHASES?
+     * ---------------
+     * If matching were in the same transaction as persistence:
+     * - Matching failure → Order creation rollback → Valid order LOST ❌
+     *
+     * With two phases:
+     * - Matching failure → Order remains PENDING → Can retry matching ✅
+     *
+     * IMPORTANT: Cross-Service Call
+     * -----------------------------
+     * This method calls OrderPersistenceService (different class), which ensures
+     * the @Transactional annotation works correctly via Spring's AOP proxy.
+     * DO NOT move persistence logic back into this class - it will break transactions!
+     *
+     * @param order The order to create (uuid will be auto-generated)
      * @return The created order with generated UUID
+     * @throws IllegalArgumentException if user or market not found
+     * @throws IllegalStateException if insufficient wallet balance
+     *
+     * @see OrderPersistenceService#persistOrder(Order) - Phase 1 implementation
+     * @see MarketService#matchOrders(UUID) - Phase 2 implementation
      */
-    @Transactional
     public Order createOrder(Order order) {
-        // 1. Validate user exists
+        // ═══════════════════════════════════════════════════════════════════
+        // PHASE 1: Persist Order (Atomic Transaction)
+        // ═══════════════════════════════════════════════════════════════════
+        // This call crosses service boundaries, ensuring @Transactional works
+        Order createdOrder = orderPersistenceService.persistOrder(order);
 
-        if (!userRepository.existsById(order.getUserId())) {
-            throw new IllegalArgumentException("User not found with ID: " + order.getUserId());
-        }
-
-        // 2. Validate market exists and is ACTIVE
-        if (!marketRepository.existsById(order.getMarketId())) {
-            throw new IllegalArgumentException("Market not found with ID: " + order.getMarketId());
-        }
-
-        // 3. Calculate required funds based on order side
-        BigDecimal requiredFunds;
-
-        if (order.getSide() == OrderSide.BUY) {
-            // BUY: User is buying YES shares, pays price * quantity
-            requiredFunds = order.getPrice().multiply(BigDecimal.valueOf(order.getQuantity()));
-        } else {
-            // SELL: User is buying NO shares, pays (1 - price) * quantity
-            // Since YES price + NO price = 1, NO price = 1 - YES price
-            BigDecimal noPrice = BigDecimal.ONE.subtract(order.getPrice());
-            requiredFunds = noPrice.multiply(BigDecimal.valueOf(order.getQuantity()));
-        }
-
-        // 4. Check wallet has sufficient balance
-        Wallet wallet = walletService.getWalletByUserId(order.getUserId());
-
-        if (wallet.getBalance().compareTo(requiredFunds)<0) {
-            throw new IllegalStateException(
-                    String.format("Insufficient balance. Available: %s, Required: %s",
-                            wallet.getBalance(), requiredFunds)
+        // ═══════════════════════════════════════════════════════════════════
+        // PHASE 2: Attempt Order Matching (Separate Transaction)
+        // ═══════════════════════════════════════════════════════════════════
+        // Matching failures are isolated from order creation
+        try {
+            Market market = marketRepository.findById(order.getMarketId()).orElse(null);
+            if (market != null && market.getStatus() == MarketStatus.ACTIVE) {
+                // MarketService.matchOrders() runs in its own @Transactional boundary
+                marketService.matchOrders(order.getMarketId());
+            }
+        } catch (Exception e) {
+            // Log the matching error but DO NOT propagate the exception
+            // The order is already safely persisted in the database
+            // Developers can manually trigger matching via:
+            // - MarketController.matchOrders() endpoint
+            // - Frontend "Manual Order Matching" button
+            System.err.println(
+                    "WARNING: Order matching failed for order " + createdOrder.getUuid() +
+                    ". Order remains PENDING and can be matched manually. " +
+                    "Error: " + e.getMessage()
             );
         }
 
-        // 5. Lock funds in wallet
-        walletService.lockFunds(order.getUserId(), requiredFunds);
-
-        // 6. Save order with state PENDING
-
-        order.setState(OrderState.PENDING);
-        // 7. Create ORDER_PLACED transaction
-
-        Transaction transaction = new Transaction(
-                order.getUserId(),
-                TransactionType.ORDER_PLACED,
-                requiredFunds
-        );
-        walletService.getTransactionService().createTransaction(transaction);
-
-        // 8. Save order in repository
-        orderRepository.save(order);
-
-        // 9. Call to marketService to attempt matching orders
-        Market market = marketRepository.findById(order.getMarketId()).orElse(null);
-        if (market != null && market.getStatus() == MarketStatus.ACTIVE) {
-            marketService.matchOrders(order.getMarketId());
-        }
-
-
-        return orderRepository.save(order);
+        return createdOrder;
     }
 
     /**

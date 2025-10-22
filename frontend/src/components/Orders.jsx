@@ -9,6 +9,7 @@ export default function Orders() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [selectedMarketForMatch, setSelectedMarketForMatch] = useState('');
 
   const [newOrder, setNewOrder] = useState({
     userId: '',
@@ -123,6 +124,36 @@ export default function Orders() {
     return market ? market.outcome : 'Unknown';
   };
 
+  const handleManualMatch = async () => {
+    if (!selectedMarketForMatch) {
+      setError('Please select a market to match orders');
+      return;
+    }
+
+    try {
+      setError(null);
+      const response = await marketAPI.matchOrders(selectedMarketForMatch);
+      const matchCount = response.data;
+      alert(`Successfully matched ${matchCount} order(s)!`);
+      setSelectedMarketForMatch('');
+      await loadData();
+    } catch (err) {
+      let errorMessage = 'An error occurred while matching orders';
+      if (err.response?.data) {
+        if (typeof err.response.data === 'string') {
+          errorMessage = err.response.data;
+        } else if (err.response.data.message) {
+          errorMessage = err.response.data.message;
+        } else if (err.response.data.error) {
+          errorMessage = err.response.data.error;
+        }
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      setError(errorMessage);
+    }
+  };
+
   if (loading) return <div className="text-center py-8">Loading...</div>;
 
   return (
@@ -142,6 +173,43 @@ export default function Orders() {
           Error: {typeof error === 'string' ? error : JSON.stringify(error)}
         </div>
       )}
+
+      <div className="bg-white shadow-md rounded px-8 pt-6 pb-8">
+        <h3 className="text-xl font-semibold mb-4">Manual Order Matching</h3>
+        <div className="flex gap-4 items-end">
+          <div className="flex-1">
+            <label className="block text-gray-700 text-sm font-bold mb-2">
+              Select Market to Match
+            </label>
+            <select
+              value={selectedMarketForMatch}
+              onChange={(e) => setSelectedMarketForMatch(e.target.value)}
+              className="shadow border rounded w-full py-2 px-3 text-gray-700"
+            >
+              <option value="">Select a market...</option>
+              {markets.filter(m => m.status === 'ACTIVE').map((market) => (
+                <option key={market.uuid} value={market.uuid}>
+                  {getMarketInfo(market.uuid)}
+                </option>
+              ))}
+            </select>
+          </div>
+          <button
+            onClick={handleManualMatch}
+            disabled={!selectedMarketForMatch}
+            className={`py-2 px-6 rounded font-bold text-white ${
+              selectedMarketForMatch
+                ? 'bg-orange-500 hover:bg-orange-700'
+                : 'bg-gray-400 cursor-not-allowed'
+            }`}
+          >
+            Match Orders
+          </button>
+        </div>
+        <p className="text-xs text-gray-600 mt-2">
+          Manually trigger order matching for pending orders in the selected market
+        </p>
+      </div>
 
       {showCreateForm && (
         <form onSubmit={handleCreateOrder} className="bg-white shadow-md rounded px-8 pt-6 pb-8">
