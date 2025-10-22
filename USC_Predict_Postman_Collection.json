@@ -1,0 +1,521 @@
+{
+  "info": {
+    "name": "USC Predict API",
+    "description": "Collection for testing USC Predict prediction market platform",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8080/users/health",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["users", "health"]
+        }
+      }
+    },
+    {
+      "name": "Events",
+      "item": [
+        {
+          "name": "Create Event",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"title\": \"¿Ganará Trump las elecciones 2024?\",\n    \"description\": \"Predicción sobre las elecciones presidenciales USA\",\n    \"state\": \"OPEN\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/events",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["events"]
+            }
+          }
+        },
+        {
+          "name": "Get All Events",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/events",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["events"]
+            }
+          }
+        },
+        {
+          "name": "Get Event by UUID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/events/:uuid",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["events", ":uuid"],
+              "variable": [
+                {
+                  "key": "uuid",
+                  "value": "REPLACE_WITH_EVENT_UUID"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Events by State",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/events/state/OPEN",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["events", "state", "OPEN"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Markets",
+      "item": [
+        {
+          "name": "Create Market",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"eventId\": \"REPLACE_WITH_EVENT_UUID\",\n    \"outcome\": \"YES\",\n    \"status\": \"ACTIVE\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/markets",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["markets"]
+            }
+          }
+        },
+        {
+          "name": "Get All Markets",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/markets",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["markets"]
+            }
+          }
+        },
+        {
+          "name": "Get Markets by Event",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/markets/event/:eventId",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["markets", "event", ":eventId"],
+              "variable": [
+                {
+                  "key": "eventId",
+                  "value": "REPLACE_WITH_EVENT_UUID"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Match Orders for Market",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/markets/:uuid/match",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["markets", ":uuid", "match"],
+              "variable": [
+                {
+                  "key": "uuid",
+                  "value": "REPLACE_WITH_MARKET_UUID"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Create User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Ana López\",\n    \"email\": \"ana@test.com\",\n    \"pswd_hash\": \"hash123\",\n    \"role\": \"USER\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/users",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["users"]
+            }
+          }
+        },
+        {
+          "name": "Get All Users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/users",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["users"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Orders",
+      "item": [
+        {
+          "name": "Create Buy Order",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"userId\": \"REPLACE_WITH_USER_UUID\",\n    \"marketId\": \"REPLACE_WITH_MARKET_UUID\",\n    \"side\": \"BUY\",\n    \"price\": 0.65,\n    \"quantity\": 100\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/orders",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["orders"]
+            }
+          }
+        },
+        {
+          "name": "Create Sell Order",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"userId\": \"REPLACE_WITH_USER_UUID\",\n    \"marketId\": \"REPLACE_WITH_MARKET_UUID\",\n    \"side\": \"SELL\",\n    \"price\": 0.70,\n    \"quantity\": 50\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/orders",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["orders"]
+            }
+          }
+        },
+        {
+          "name": "Get All Orders",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/orders",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["orders"]
+            }
+          }
+        },
+        {
+          "name": "Get Order by UUID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/orders/:uuid",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["orders", ":uuid"],
+              "variable": [
+                {
+                  "key": "uuid",
+                  "value": "REPLACE_WITH_ORDER_UUID"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Order Book",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/orders/market/:marketId/book",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["orders", "market", ":marketId", "book"],
+              "variable": [
+                {
+                  "key": "marketId",
+                  "value": "REPLACE_WITH_MARKET_UUID"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get User Orders",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/orders/user/:userId",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["orders", "user", ":userId"],
+              "variable": [
+                {
+                  "key": "userId",
+                  "value": "REPLACE_WITH_USER_UUID"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Cancel Order",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/orders/:uuid/cancel",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["orders", ":uuid", "cancel"],
+              "variable": [
+                {
+                  "key": "uuid",
+                  "value": "REPLACE_WITH_ORDER_UUID"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Wallets",
+      "item": [
+        {
+          "name": "Get User Wallet",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/wallets/user/:userId",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["wallets", "user", ":userId"],
+              "variable": [
+                {
+                  "key": "userId",
+                  "value": "REPLACE_WITH_USER_UUID"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Deposit Funds",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"userId\": \"REPLACE_WITH_USER_UUID\",\n    \"amount\": 1000.00\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/wallets/deposit",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["wallets", "deposit"]
+            }
+          }
+        },
+        {
+          "name": "Withdraw Funds",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"userId\": \"REPLACE_WITH_USER_UUID\",\n    \"amount\": 100.00\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/wallets/withdraw",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["wallets", "withdraw"]
+            }
+          }
+        },
+        {
+          "name": "Get User Balance Info",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/wallets/user/:userId/balance",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["wallets", "user", ":userId", "balance"],
+              "variable": [
+                {
+                  "key": "userId",
+                  "value": "REPLACE_WITH_USER_UUID"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get All Wallets",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/wallets",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["wallets"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Transactions",
+      "item": [
+        {
+          "name": "Create Transaction",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"userId\": \"REPLACE_WITH_USER_UUID\",\n    \"type\": \"DEPOSIT\",\n    \"amount\": 1000.00\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/transactions",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["transactions"]
+            }
+          }
+        },
+        {
+          "name": "Get Transaction History",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/transactions/user/:userId/history",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["transactions", "user", ":userId", "history"],
+              "variable": [
+                {
+                  "key": "userId",
+                  "value": "REPLACE_WITH_USER_UUID"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -2,6 +2,7 @@ package usc.uscPredict.model;
 
 public enum OrderState {
     PENDING,
-    EXECUTED,
+    PARTIALLY_FILLED,
+    FILLED,
     CANCELLED
 }
