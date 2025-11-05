@@ -12,6 +12,11 @@ export default function Users() {
     pswd_hash: '',
     role: 'USER'
   });
+  const [editingUser, setEditingUser] = useState(null);
+  const [editForm, setEditForm] = useState({
+    name: '',
+    email: '',
+  });
 
   useEffect(() => {
     loadUsers();
@@ -60,6 +65,36 @@ export default function Users() {
     } catch (err) {
       setError(err.message);
     }
+  };
+
+  const handleEditUser = (user) => {
+    setEditingUser(user.uuid);
+    setEditForm({
+      name: user.name,
+      email: user.email,
+    });
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editForm.name.trim() || !editForm.email.trim()) {
+      alert('Name and email cannot be empty');
+      return;
+    }
+
+    try {
+      setError(null);
+      await userAPI.updateProfile(editingUser, editForm);
+      setEditingUser(null);
+      setEditForm({ name: '', email: '' });
+      await loadUsers();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingUser(null);
+    setEditForm({ name: '', email: '' });
   };
 
   if (loading) return <div className="text-center py-8">Loading...</div>;
@@ -156,8 +191,30 @@ export default function Users() {
           <tbody className="divide-y divide-gray-200">
             {users.map((user) => (
               <tr key={user.uuid}>
-                <td className="px-6 py-4 whitespace-nowrap">{user.name}</td>
-                <td className="px-6 py-4 whitespace-nowrap">{user.email}</td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  {editingUser === user.uuid ? (
+                    <input
+                      type="text"
+                      value={editForm.name}
+                      onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                      className="border rounded px-2 py-1 text-sm w-full"
+                    />
+                  ) : (
+                    user.name
+                  )}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  {editingUser === user.uuid ? (
+                    <input
+                      type="email"
+                      value={editForm.email}
+                      onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                      className="border rounded px-2 py-1 text-sm w-full"
+                    />
+                  ) : (
+                    user.email
+                  )}
+                </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className={`px-2 py-1 rounded text-xs ${
                     user.role === 'ADMIN' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
@@ -169,18 +226,43 @@ export default function Users() {
                   {new Date(user.created_at).toLocaleDateString()}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm space-x-2">
-                  <button
-                    onClick={() => handleCreateWallet(user.uuid)}
-                    className="text-green-600 hover:text-green-900"
-                  >
-                    Create Wallet
-                  </button>
-                  <button
-                    onClick={() => handleDeleteUser(user.uuid)}
-                    className="text-red-600 hover:text-red-900"
-                  >
-                    Delete
-                  </button>
+                  {editingUser === user.uuid ? (
+                    <>
+                      <button
+                        onClick={handleSaveEdit}
+                        className="text-green-600 hover:text-green-900 font-semibold"
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={handleCancelEdit}
+                        className="text-gray-600 hover:text-gray-900"
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => handleEditUser(user)}
+                        className="text-blue-600 hover:text-blue-900"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleCreateWallet(user.uuid)}
+                        className="text-green-600 hover:text-green-900"
+                      >
+                        Create Wallet
+                      </button>
+                      <button
+                        onClick={() => handleDeleteUser(user.uuid)}
+                        className="text-red-600 hover:text-red-900"
+                      >
+                        Delete
+                      </button>
+                    </>
+                  )}
                 </td>
               </tr>
             ))}

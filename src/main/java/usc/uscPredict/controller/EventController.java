@@ -1,5 +1,6 @@
 package usc.uscPredict.controller;
 
+import com.github.fge.jsonpatch.JsonPatchException;
 import jakarta.validation.Valid;
 import lombok.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -9,7 +10,10 @@ import org.springframework.web.bind.annotation.*;
 import usc.uscPredict.model.Event;
 import usc.uscPredict.model.EventState;
 import usc.uscPredict.service.EventService;
+import usc.uscPredict.util.PatchUtils;
 
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -23,10 +27,12 @@ import java.util.UUID;
 public class EventController {
 
     private final EventService eventService;
+    private final PatchUtils patchUtils;
 
     @Autowired
-    public EventController(EventService eventService) {
+    public EventController(EventService eventService, PatchUtils patchUtils) {
         this.eventService = eventService;
+        this.patchUtils = patchUtils;
     }
 
     /**
@@ -121,38 +127,34 @@ public class EventController {
     }
 
     /**
-     * PATCH /events/{uuid}/state
-     * Changes the state of an event.
-     * Body: { "state": "CLOSED" }
+     * PATCH /events/{uuid}
+     * Applies JSON-Patch operations to an event (RFC 6902).
+     * Body: [{ "op": "replace", "path": "/state", "value": "CLOSED" }]
      * @param uuid The event UUID
-     * @param stateData Object containing the new state
-     * @return 200 OK with updated event, or 404 NOT FOUND
+     * @param updates List of JSON-Patch operations
+     * @return 200 OK with updated event, 404 NOT FOUND, or 400 BAD REQUEST
      */
-    @PatchMapping("/{uuid}/state")
-    public ResponseEntity<Event> changeEventState(
+    @PatchMapping("/{uuid}")
+    public ResponseEntity<Event> patchEvent(
             @PathVariable UUID uuid,
-            @RequestBody StateChangeRequest stateData) {
-        Event updated = eventService.changeEventState(uuid, stateData.getState());
-        if (updated != null) {
+            @RequestBody List<Map<String, Object>> updates) {
+        try {
+            // 1. Obter o evento da base de datos
+            Event existingEvent = eventService.getEventById(uuid);
+            if (existingEvent == null) {
+                return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+            }
+
+            // 2. Aplicar as operacións JSON-Patch
+            Event patchedEvent = patchUtils.applyPatch(existingEvent, updates);
+
+            // 3. Gardar o recurso actualizado
+            Event updated = eventService.updateEvent(uuid, patchedEvent);
             return new ResponseEntity<>(updated, HttpStatus.OK);
-        } else {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-        }
-    }
 
-    /**
-     * Inner class for state change requests.
-     * Used for PATCH /events/{uuid}/state endpoint.
-     */
-    public static class StateChangeRequest {
-        private EventState state;
-
-        public EventState getState() {
-            return state;
-        }
-
-        public void setState(EventState state) {
-            this.state = state;
+        } catch (JsonPatchException e) {
+            // Erro ao aplicar o parche (operación inválida, path incorrecto, etc.)
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
     }
 }

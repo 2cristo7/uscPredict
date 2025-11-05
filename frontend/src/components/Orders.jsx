@@ -18,6 +18,12 @@ export default function Orders() {
     quantity: ''
   });
 
+  const [editingOrder, setEditingOrder] = useState(null);
+  const [editForm, setEditForm] = useState({
+    price: '',
+    quantity: ''
+  });
+
   useEffect(() => {
     loadData();
   }, []);
@@ -111,6 +117,57 @@ export default function Orders() {
         setError(errorMessage);
       }
     }
+  };
+
+  const handleEditOrder = (order) => {
+    setEditingOrder(order.uuid);
+    setEditForm({
+      price: order.price,
+      quantity: order.quantity
+    });
+  };
+
+  const handleSaveEdit = async () => {
+    const price = parseFloat(editForm.price);
+    const quantity = parseInt(editForm.quantity);
+
+    if (isNaN(price) || price <= 0 || price > 1) {
+      alert('Price must be between 0 and 1');
+      return;
+    }
+
+    if (isNaN(quantity) || quantity < 1) {
+      alert('Quantity must be at least 1');
+      return;
+    }
+
+    try {
+      setError(null);
+      await orderAPI.patch(editingOrder, [
+        { op: 'replace', path: '/price', value: price },
+        { op: 'replace', path: '/quantity', value: quantity }
+      ]);
+      setEditingOrder(null);
+      setEditForm({ price: '', quantity: '' });
+      await loadData();
+    } catch (err) {
+      let errorMessage = 'An error occurred while updating order';
+      if (err.response?.data) {
+        if (typeof err.response.data === 'string') {
+          errorMessage = err.response.data;
+        } else if (err.response.data.message) {
+          errorMessage = err.response.data.message;
+        }
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      setError(errorMessage);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingOrder(null);
+    setEditForm({ price: '', quantity: '' });
   };
 
   const getUserName = (userId) => {
@@ -264,8 +321,34 @@ export default function Orders() {
                     {order.side}
                   </span>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap">${parseFloat(order.price).toFixed(2)}</td>
-                <td className="px-6 py-4 whitespace-nowrap">{order.quantity}</td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  {editingOrder === order.uuid ? (
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="1"
+                      value={editForm.price}
+                      onChange={(e) => setEditForm({ ...editForm, price: e.target.value })}
+                      className="border rounded px-2 py-1 text-sm w-20"
+                    />
+                  ) : (
+                    `$${parseFloat(order.price).toFixed(2)}`
+                  )}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  {editingOrder === order.uuid ? (
+                    <input
+                      type="number"
+                      min="1"
+                      value={editForm.quantity}
+                      onChange={(e) => setEditForm({ ...editForm, quantity: e.target.value })}
+                      className="border rounded px-2 py-1 text-sm w-20"
+                    />
+                  ) : (
+                    order.quantity
+                  )}
+                </td>
                 <td className="px-6 py-4 whitespace-nowrap">{order.filledQuantity}</td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className={`px-2 py-1 rounded text-xs ${
@@ -277,14 +360,41 @@ export default function Orders() {
                     {order.state}
                   </span>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm">
-                  {(order.state === 'PENDING' || order.state === 'PARTIALLY_FILLED') && (
-                    <button
-                      onClick={() => handleCancelOrder(order.uuid)}
-                      className="text-red-600 hover:text-red-900"
-                    >
-                      Cancel
-                    </button>
+                <td className="px-6 py-4 whitespace-nowrap text-sm space-x-2">
+                  {editingOrder === order.uuid ? (
+                    <>
+                      <button
+                        onClick={handleSaveEdit}
+                        className="text-green-600 hover:text-green-900 font-semibold"
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={handleCancelEdit}
+                        className="text-gray-600 hover:text-gray-900"
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      {(order.state === 'PENDING' || order.state === 'PARTIALLY_FILLED') && (
+                        <>
+                          <button
+                            onClick={() => handleEditOrder(order)}
+                            className="text-blue-600 hover:text-blue-900"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleCancelOrder(order.uuid)}
+                            className="text-red-600 hover:text-red-900"
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      )}
+                    </>
                   )}
                 </td>
               </tr>

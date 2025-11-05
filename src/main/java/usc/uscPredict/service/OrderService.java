@@ -255,4 +255,28 @@ public class OrderService {
     public Set<Order> getOrderBook(UUID marketId) {
         return orderRepository.findByMarketIdAndState(marketId, OrderState.PENDING);
     }
+
+    /**
+     * Patches an existing order using JSON-Patch operations.
+     * Only allows updating PENDING or PARTIALLY_FILLED orders.
+     * Validates that price and quantity are within allowed ranges.
+     * @param uuid The UUID of the order to patch
+     * @param patchedOrder The order with patched fields
+     * @return The updated order
+     */
+    @Transactional
+    public Order patchOrder(UUID uuid, Order patchedOrder) {
+        // Validate the patched order
+        if (patchedOrder.getPrice().compareTo(BigDecimal.ZERO) <= 0 ||
+            patchedOrder.getPrice().compareTo(BigDecimal.ONE) > 0) {
+            throw new IllegalStateException("Price must be between 0 and 1");
+        }
+
+        if (patchedOrder.getQuantity() < 1) {
+            throw new IllegalStateException("Quantity must be at least 1");
+        }
+
+        // Save the updated order
+        return orderRepository.save(patchedOrder);
+    }
 }

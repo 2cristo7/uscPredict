@@ -1,6 +1,6 @@
 package usc.uscPredict.controller;
 
-
+import com.github.fge.jsonpatch.JsonPatchException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -9,31 +9,31 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.NonNull;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import usc.uscPredict.model.User;
 import usc.uscPredict.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpStatus;
+import usc.uscPredict.util.PatchUtils;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 @Tag(name = "Users", description = "API de gestión de usuarios")
 @RestController
 @RequestMapping("users")
 class UserController {
     UserService userService;
+    PatchUtils patchUtils;
 
     @Autowired
-    public UserController(UserService userService) {
+    public UserController(UserService userService, PatchUtils patchUtils) {
         this.userService = userService;
+        this.patchUtils = patchUtils;
     }
 
     @Operation(
@@ -104,6 +104,42 @@ class UserController {
             return new ResponseEntity<>(addedUser, HttpStatus.CREATED);
         } else {
             return new ResponseEntity<>(HttpStatus.CONFLICT);
+        }
+    }
+
+    @Operation(
+            summary = "Actualizar usuario con JSON-Patch",
+            description = "Aplica operaciones JSON-Patch (RFC 6902) para actualizar un usuario. Permite actualizar nombre, email y contraseña."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Usuario actualizado exitosamente",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = User.class))),
+            @ApiResponse(responseCode = "400", description = "Operación de patch inválida", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Usuario no encontrado", content = @Content)
+    })
+    @PatchMapping("/{uuid}")
+    public ResponseEntity<User> patchUser(
+            @Parameter(description = "UUID del usuario a actualizar", required = true, example = "123e4567-e89b-12d3-a456-426614174000")
+            @PathVariable UUID uuid,
+            @Parameter(description = "Lista de operaciones JSON-Patch", required = true)
+            @RequestBody List<Map<String, Object>> updates) {
+        try {
+            // 1. Obter o usuario da base de datos
+            User existingUser = userService.getUserById(uuid);
+            if (existingUser == null) {
+                return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+            }
+
+            // 2. Aplicar as operacións JSON-Patch
+            User patchedUser = patchUtils.applyPatch(existingUser, updates);
+
+            // 3. Gardar o usuario actualizado
+            User updated = userService.updateUser(uuid, patchedUser);
+            return new ResponseEntity<>(updated, HttpStatus.OK);
+
+        } catch (JsonPatchException e) {
+            // Erro ao aplicar o parche (operación inválida, path incorrecto, etc.)
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
     }
 }

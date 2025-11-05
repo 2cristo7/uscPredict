@@ -29,4 +29,16 @@ public class CommentService {
     public void deleteComment(UUID commentId) {
         repository.deleteById(commentId);
     }
+
+    public Comment getCommentById(UUID commentId) {
+        return repository.findById(commentId).orElse(null);
+    }
+
+    public Comment updateComment(UUID commentId, Comment comment) {
+        if (repository.existsById(commentId)) {
+            comment.setUuid(commentId);
+            return repository.save(comment);
+        }
+        return null;
+    }
 }

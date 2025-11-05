@@ -105,6 +105,16 @@ export default function Markets() {
     }
   };
 
+  const handleChangeMarketStatus = async (marketId, newStatus) => {
+    try {
+      setError(null);
+      await marketAPI.changeStatus(marketId, newStatus);
+      await loadData();
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    }
+  };
+
   const getEventTitle = (eventId) => {
     const event = events.find(e => e.uuid === eventId);
     return event ? event.title : 'Unknown Event';
@@ -229,13 +239,19 @@ export default function Markets() {
                   {market.outcome}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 py-1 rounded text-xs ${
-                    market.status === 'ACTIVE' ? 'bg-green-100 text-green-800' :
-                    market.status === 'SUSPENDED' ? 'bg-yellow-100 text-yellow-800' :
-                    'bg-gray-100 text-gray-800'
-                  }`}>
-                    {market.status}
-                  </span>
+                  <select
+                    value={market.status}
+                    onChange={(e) => handleChangeMarketStatus(market.uuid, e.target.value)}
+                    className={`px-2 py-1 rounded text-xs border-0 cursor-pointer ${
+                      market.status === 'ACTIVE' ? 'bg-green-100 text-green-800' :
+                      market.status === 'SUSPENDED' ? 'bg-yellow-100 text-yellow-800' :
+                      'bg-gray-100 text-gray-800'
+                    }`}
+                  >
+                    <option value="ACTIVE">ACTIVE</option>
+                    <option value="SUSPENDED">SUSPENDED</option>
+                    <option value="SETTLED">SETTLED</option>
+                  </select>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm space-x-2">
                   {market.status === 'ACTIVE' && (

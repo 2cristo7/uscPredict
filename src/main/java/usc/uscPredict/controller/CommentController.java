@@ -1,5 +1,6 @@
 package usc.uscPredict.controller;
 
+import com.github.fge.jsonpatch.JsonPatchException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -8,12 +9,15 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import usc.uscPredict.model.Comment;
 import usc.uscPredict.service.CommentService;
+import usc.uscPredict.util.PatchUtils;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Tag(name = "Comments", description = "API de gestión de comentarios")
@@ -22,9 +26,11 @@ import java.util.UUID;
 public class CommentController {
 
     private final CommentService service;
+    private final PatchUtils patchUtils;
 
-    public CommentController(CommentService service) {
+    public CommentController(CommentService service, PatchUtils patchUtils) {
         this.service = service;
+        this.patchUtils = patchUtils;
     }
 
     @Operation(
@@ -73,5 +79,41 @@ public class CommentController {
             @PathVariable UUID commentId) {
         service.deleteComment(commentId);
         return ResponseEntity.noContent().build();
+    }
+
+    @Operation(
+            summary = "Editar comentario con JSON-Patch",
+            description = "Aplica operaciones JSON-Patch (RFC 6902) para actualizar un comentario. Solo el contenido puede ser editado."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Comentario actualizado exitosamente",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = Comment.class))),
+            @ApiResponse(responseCode = "400", description = "Operación de patch inválida", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Comentario no encontrado", content = @Content)
+    })
+    @PatchMapping("/{commentId}")
+    public ResponseEntity<Comment> patchComment(
+            @Parameter(description = "UUID del comentario a editar", required = true, example = "123e4567-e89b-12d3-a456-426614174000")
+            @PathVariable UUID commentId,
+            @Parameter(description = "Lista de operaciones JSON-Patch", required = true)
+            @RequestBody List<Map<String, Object>> updates) {
+        try {
+            // 1. Obter o comentario da base de datos
+            Comment existingComment = service.getCommentById(commentId);
+            if (existingComment == null) {
+                return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+            }
+
+            // 2. Aplicar as operacións JSON-Patch
+            Comment patchedComment = patchUtils.applyPatch(existingComment, updates);
+
+            // 3. Gardar o comentario actualizado
+            Comment updated = service.updateComment(commentId, patchedComment);
+            return new ResponseEntity<>(updated, HttpStatus.OK);
+
+        } catch (JsonPatchException e) {
+            // Erro ao aplicar o parche (operación inválida, path incorrecto, etc.)
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        }
     }
 }

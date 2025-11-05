@@ -1,5 +1,6 @@
 package usc.uscPredict.controller;
 
+import com.github.fge.jsonpatch.JsonPatchException;
 import jakarta.validation.Valid;
 import lombok.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -9,7 +10,10 @@ import org.springframework.web.bind.annotation.*;
 import usc.uscPredict.model.Market;
 import usc.uscPredict.model.MarketStatus;
 import usc.uscPredict.service.MarketService;
+import usc.uscPredict.util.PatchUtils;
 
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -23,10 +27,12 @@ import java.util.UUID;
 public class MarketController {
 
     private final MarketService marketService;
+    private final PatchUtils patchUtils;
 
     @Autowired
-    public MarketController(MarketService marketService) {
+    public MarketController(MarketService marketService, PatchUtils patchUtils) {
         this.marketService = marketService;
+        this.patchUtils = patchUtils;
     }
 
     /**
@@ -134,22 +140,34 @@ public class MarketController {
     }
 
     /**
-     * PATCH /markets/{uuid}/status
-     * Changes the status of a market.
-     * Body: { "status": "SUSPENDED" }
+     * PATCH /markets/{uuid}
+     * Applies JSON-Patch operations to a market (RFC 6902).
+     * Body: [{ "op": "replace", "path": "/status", "value": "SUSPENDED" }]
      * @param uuid The market UUID
-     * @param statusData Object containing the new status
-     * @return 200 OK with updated market, or 404 NOT FOUND
+     * @param updates List of JSON-Patch operations
+     * @return 200 OK with updated market, 404 NOT FOUND, or 400 BAD REQUEST
      */
-    @PatchMapping("/{uuid}/status")
-    public ResponseEntity<Market> changeMarketStatus(
+    @PatchMapping("/{uuid}")
+    public ResponseEntity<Market> patchMarket(
             @PathVariable UUID uuid,
-            @RequestBody StatusChangeRequest statusData) {
-        Market updated = marketService.changeMarketStatus(uuid, statusData.getStatus());
-        if (updated != null) {
+            @RequestBody List<Map<String, Object>> updates) {
+        try {
+            // 1. Obter o mercado da base de datos
+            Market existingMarket = marketService.getMarketById(uuid);
+            if (existingMarket == null) {
+                return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+            }
+
+            // 2. Aplicar as operacións JSON-Patch
+            Market patchedMarket = patchUtils.applyPatch(existingMarket, updates);
+
+            // 3. Gardar o recurso actualizado
+            Market updated = marketService.updateMarket(uuid, patchedMarket);
             return new ResponseEntity<>(updated, HttpStatus.OK);
-        } else {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+
+        } catch (JsonPatchException e) {
+            // Erro ao aplicar o parche (operación inválida, path incorrecto, etc.)
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
     }
 
@@ -182,22 +200,6 @@ public class MarketController {
         int matchCount = marketService.matchOrders(uuid);
         MatchResult result = new MatchResult(matchCount);
         return new ResponseEntity<>(result, HttpStatus.OK);
-    }
-
-    /**
-     * Inner class for status change requests.
-     * Used for PATCH /markets/{uuid}/status endpoint.
-     */
-    public static class StatusChangeRequest {
-        private MarketStatus status;
-
-        public MarketStatus getStatus() {
-            return status;
-        }
-
-        public void setStatus(MarketStatus status) {
-            this.status = status;
-        }
     }
 
     /**

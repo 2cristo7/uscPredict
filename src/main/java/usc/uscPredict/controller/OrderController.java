@@ -1,5 +1,6 @@
 package usc.uscPredict.controller;
 
+import com.github.fge.jsonpatch.JsonPatchException;
 import jakarta.validation.Valid;
 import lombok.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -9,7 +10,10 @@ import org.springframework.web.bind.annotation.*;
 import usc.uscPredict.model.Order;
 import usc.uscPredict.model.OrderState;
 import usc.uscPredict.service.OrderService;
+import usc.uscPredict.util.PatchUtils;
 
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -23,10 +27,12 @@ import java.util.UUID;
 public class OrderController {
 
     private final OrderService orderService;
+    private final PatchUtils patchUtils;
 
     @Autowired
-    public OrderController(OrderService orderService) {
+    public OrderController(OrderService orderService, PatchUtils patchUtils) {
         this.orderService = orderService;
+        this.patchUtils = patchUtils;
     }
 
     /**
@@ -97,6 +103,49 @@ public class OrderController {
             return new ResponseEntity<>(updated, HttpStatus.OK);
         } else {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
+    }
+
+    /**
+     * PATCH /orders/{uuid}
+     * Applies JSON-Patch operations to modify an order (RFC 6902).
+     * Only PENDING or PARTIALLY_FILLED orders can be modified.
+     * Allows updating price and quantity fields.
+     * Body: [{ "op": "replace", "path": "/price", "value": 0.75 }]
+     * @param uuid The order UUID
+     * @param updates List of JSON-Patch operations
+     * @return 200 OK with updated order, 404 NOT FOUND, or 400 BAD REQUEST
+     */
+    @PatchMapping("/{uuid}")
+    public ResponseEntity<?> patchOrder(
+            @PathVariable UUID uuid,
+            @RequestBody List<Map<String, Object>> updates) {
+        try {
+            // 1. Obter a orden da base de datos
+            Order existingOrder = orderService.getOrderById(uuid);
+            if (existingOrder == null) {
+                return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+            }
+
+            // 2. Validar que a orden pode ser modificada (só PENDING ou PARTIALLY_FILLED)
+            if (existingOrder.getState() != OrderState.PENDING &&
+                existingOrder.getState() != OrderState.PARTIALLY_FILLED) {
+                return ResponseEntity.badRequest()
+                    .body("Only PENDING or PARTIALLY_FILLED orders can be modified");
+            }
+
+            // 3. Aplicar as operacións JSON-Patch
+            Order patchedOrder = patchUtils.applyPatch(existingOrder, updates);
+
+            // 4. Gardar a orden actualizada
+            Order updated = orderService.patchOrder(uuid, patchedOrder);
+            return new ResponseEntity<>(updated, HttpStatus.OK);
+
+        } catch (JsonPatchException e) {
+            // Erro ao aplicar o parche (operación inválida, path incorrecto, etc.)
+            return ResponseEntity.badRequest().body("Invalid patch operation: " + e.getMessage());
+        } catch (IllegalStateException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 

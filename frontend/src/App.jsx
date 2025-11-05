@@ -3,6 +3,7 @@ import Users from './components/Users';
 import Wallets from './components/Wallets';
 import Markets from './components/Markets';
 import Orders from './components/Orders';
+import Events from './components/Events';
 
 function App() {
   const [activeTab, setActiveTab] = useState('users');
@@ -10,6 +11,7 @@ function App() {
   const tabs = [
     { id: 'users', name: 'Users', component: Users },
     { id: 'wallets', name: 'Wallets', component: Wallets },
+    { id: 'events', name: 'Eventos', component: Events },
     { id: 'markets', name: 'Markets & Events', component: Markets },
     { id: 'orders', name: 'Orders & Positions', component: Orders },
   ];

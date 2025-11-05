@@ -10,6 +10,8 @@ import usc.uscPredict.exception.PredictUsernameNotFoundException;
 import usc.uscPredict.model.User;
 import usc.uscPredict.repository.UserRepository;
 
+import java.util.UUID;
+
 @Getter
 @Service
 public class UserService {
@@ -55,6 +57,19 @@ public class UserService {
 
     public User getUserByName(@Nullable String name) throws PredictUsernameNotFoundException {
         return users.findByName(name).stream().findFirst().orElseThrow(() -> new PredictUsernameNotFoundException("User not found"));
+    }
+
+    public User getUserById(UUID uuid) {
+        return users.findById(uuid).orElse(null);
+    }
+
+    public User updateUser(UUID uuid, User user) {
+        if (users.existsById(uuid)) {
+            // Note: User entity doesn't have setUuid, the uuid is auto-generated
+            // We need to save the updated user data while preserving the ID
+            return users.save(user);
+        }
+        return null;
     }
 
 }
