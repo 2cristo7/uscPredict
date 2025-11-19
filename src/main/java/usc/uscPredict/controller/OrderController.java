@@ -1,5 +1,6 @@
 package usc.uscPredict.controller;
 
+import com.fasterxml.jackson.annotation.JsonView;
 import com.github.fge.jsonpatch.JsonPatchException;
 import jakarta.validation.Valid;
 import lombok.NonNull;
@@ -43,6 +44,7 @@ public class OrderController {
      * @return 200 OK with list of orders
      */
     @GetMapping
+    @JsonView(Order.OrderSummaryView.class)
     public ResponseEntity<Set<Order>> getAllOrders() {
         Set<Order> orders = orderService.getAllOrders();
         return new ResponseEntity<>(orders, HttpStatus.OK);
@@ -55,6 +57,7 @@ public class OrderController {
      * @return 200 OK with order, or 404 NOT FOUND
      */
     @GetMapping("/{uuid}")
+    @JsonView(Order.OrderDetailView.class)
     public ResponseEntity<Order> getOrderById(@PathVariable UUID uuid) {
         Order order = orderService.getOrderById(uuid);
         return ResponseEntity.ok(order);
@@ -68,6 +71,7 @@ public class OrderController {
      * @return 201 CREATED with created order, or 400 BAD REQUEST
      */
     @PostMapping
+    @JsonView(Order.OrderDetailView.class)
     public ResponseEntity<Order> createOrder(@RequestBody @Valid @NonNull Order order) {
         Order created = orderService.createOrder(order);
         return new ResponseEntity<>(created, HttpStatus.CREATED);
@@ -82,6 +86,7 @@ public class OrderController {
      * @return 200 OK with updated order, or 404 NOT FOUND
      */
     @PutMapping("/{uuid}")
+    @JsonView(Order.OrderDetailView.class)
     public ResponseEntity<Order> updateOrder(
             @PathVariable UUID uuid,
             @RequestBody @Valid @NonNull Order order) {
@@ -100,6 +105,7 @@ public class OrderController {
      * @return 200 OK with updated order, 404 NOT FOUND, or 400 BAD REQUEST
      */
     @PatchMapping("/{uuid}")
+    @JsonView(Order.OrderDetailView.class)
     public ResponseEntity<Order> patchOrder(
             @PathVariable UUID uuid,
             @RequestBody List<Map<String, Object>> updates) throws JsonPatchException {
@@ -127,6 +133,7 @@ public class OrderController {
      * @return 200 OK with cancelled order, or 404 NOT FOUND
      */
     @PostMapping("/{uuid}/cancel")
+    @JsonView(Order.OrderDetailView.class)
     public ResponseEntity<Order> cancelOrder(@PathVariable UUID uuid) {
         Order cancelled = orderService.cancelOrder(uuid);
         return ResponseEntity.ok(cancelled);
@@ -157,6 +164,7 @@ public class OrderController {
      * @return 200 OK with list of orders
      */
     @GetMapping("/user/{userId}")
+    @JsonView(Order.OrderSummaryView.class)
     public ResponseEntity<Set<Order>> getOrdersByUserId(@PathVariable UUID userId) {
         Set<Order> orders = orderService.getOrdersByUserId(userId);
         return new ResponseEntity<>(orders, HttpStatus.OK);
@@ -170,6 +178,7 @@ public class OrderController {
      * @return 200 OK with list of orders
      */
     @GetMapping("/market/{marketId}")
+    @JsonView(Order.OrderSummaryView.class)
     public ResponseEntity<Set<Order>> getOrdersByMarketId(@PathVariable UUID marketId) {
         Set<Order> orders = orderService.getOrdersByMarketId(marketId);
         return new ResponseEntity<>(orders, HttpStatus.OK);
@@ -184,6 +193,7 @@ public class OrderController {
      * @return 200 OK with order book
      */
     @GetMapping("/market/{marketId}/book")
+    @JsonView(Order.OrderSummaryView.class)
     public ResponseEntity<Set<Order>> getOrderBook(@PathVariable UUID marketId) {
         Set<Order> orderBook = orderService.getOrderBook(marketId);
         return new ResponseEntity<>(orderBook, HttpStatus.OK);
@@ -198,6 +208,7 @@ public class OrderController {
      * @return 200 OK with list of orders
      */
     @GetMapping("/market/{marketId}/state/{state}")
+    @JsonView(Order.OrderSummaryView.class)
     public ResponseEntity<Set<Order>> getOrdersByMarketIdAndState(
             @PathVariable UUID marketId,
             @PathVariable OrderState state) {

@@ -1,5 +1,9 @@
 package usc.uscPredict.model;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonView;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
@@ -14,16 +18,23 @@ import java.util.UUID;
 @Schema(description = "Usuario de la plataforma USC Predict")
 @Entity
 @Table(name = "users")
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class User {
+
+    // --- Interfaces para vistas JSON ---
+    public interface UserSummaryView {}
+    public interface UserDetailView extends UserSummaryView {}
 
     @Schema(description = "Identificador único del usuario", example = "123e4567-e89b-12d3-a456-426614174000", accessMode = Schema.AccessMode.READ_ONLY)
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
+    @JsonView(UserSummaryView.class)
     private UUID uuid;
 
     @Schema(description = "Nombre completo del usuario", example = "Juan Pérez", requiredMode = Schema.RequiredMode.REQUIRED)
     @Setter
     @NotBlank
+    @JsonView(UserSummaryView.class)
     private String name;
 
     @Schema(description = "Email único del usuario", example = "juan.perez@usc.edu", requiredMode = Schema.RequiredMode.REQUIRED)
@@ -31,23 +42,28 @@ public class User {
     @NotBlank
     @Email
     @Column(unique = true, nullable = false)
+    @JsonView(UserSummaryView.class)
     private String email;
 
     @Schema(description = "Hash de la contraseña del usuario", example = "$2a$10$N9qo8uLOickgx2ZMRZoMye", accessMode = Schema.AccessMode.WRITE_ONLY)
     @Setter
     @NotBlank(message = "Password hash cannot be empty")
     @Column
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String pswd_hash;
 
     @Schema(description = "Rol del usuario en la plataforma", example = "USER", allowableValues = {"USER", "ADMIN"}, requiredMode = Schema.RequiredMode.REQUIRED)
     @NotNull(message = "Role cannot be null")
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
+    @JsonView(UserDetailView.class)
     private Role role;
 
     @Schema(description = "Fecha y hora de creación del usuario", example = "2025-10-15T10:30:00", accessMode = Schema.AccessMode.READ_ONLY)
     @Column(nullable = false, updatable = false)
     @CreationTimestamp
+    @JsonView(UserDetailView.class)
+    @JsonFormat(pattern = "dd-MM-yyyy HH:mm:ss")
     private LocalDateTime created_at;
 
     // --- Constructor vacío (requerido por JPA)

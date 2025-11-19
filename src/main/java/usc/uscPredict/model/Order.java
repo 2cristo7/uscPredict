@@ -1,5 +1,8 @@
 package usc.uscPredict.model;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonView;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
@@ -22,52 +25,69 @@ import java.util.UUID;
 })
 @Getter
 @Setter
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class Order {
+
+    // --- Interfaces para vistas JSON ---
+    public interface OrderSummaryView {}
+    public interface OrderDetailView extends OrderSummaryView {}
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
+    @JsonView(OrderSummaryView.class)
     private UUID uuid;
 
     @NotNull(message = "User ID cannot be null")
     @Column(nullable = false)
+    @JsonView(OrderDetailView.class)
     private UUID userId;
 
     @NotNull(message = "Market ID cannot be null")
     @Column(nullable = false)
+    @JsonView(OrderSummaryView.class)
     private UUID marketId;
 
     @NotNull(message = "Order side cannot be null")
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
+    @JsonView(OrderSummaryView.class)
     private OrderSide side;
 
     @NotNull
     @DecimalMin(value = "0.0", inclusive = false, message = "Price must be greater than 0")
     @DecimalMax(value = "1.0", inclusive = true, message = "Price must be at most 1")
     @Column(nullable = false, precision = 19, scale = 4)
+    @JsonView(OrderSummaryView.class)
     private BigDecimal price;
 
     @NotNull
     @Min(value = 1, message = "Quantity must be at least 1")
     @Column(nullable = false)
+    @JsonView(OrderSummaryView.class)
     private Integer quantity;
 
     @NotNull
     @Min(value = 0, message = "Filled quantity cannot be negative")
     @Column(nullable = false)
+    @JsonView(OrderDetailView.class)
     private Integer filledQuantity = 0;
 
     @NotNull(message = "Order state cannot be null")
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
+    @JsonView(OrderSummaryView.class)
     private OrderState state = OrderState.PENDING;
 
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
+    @JsonView(OrderDetailView.class)
+    @JsonFormat(pattern = "dd-MM-yyyy HH:mm:ss")
     private LocalDateTime createdAt;
 
     @UpdateTimestamp
     @Column(nullable = false)
+    @JsonView(OrderDetailView.class)
+    @JsonFormat(pattern = "dd-MM-yyyy HH:mm:ss")
     private LocalDateTime updatedAt;
 
     public Order() {

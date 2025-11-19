@@ -1,5 +1,8 @@
 package usc.uscPredict.model;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonView;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
@@ -36,18 +39,26 @@ import java.util.UUID;
     })
 @Getter
 @Setter
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class Position {
+
+    // --- Interfaces para vistas JSON ---
+    public interface PositionSummaryView {}
+    public interface PositionDetailView extends PositionSummaryView {}
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
+    @JsonView(PositionSummaryView.class)
     private UUID uuid;
 
     @NotNull(message = "User ID cannot be null")
     @Column(nullable = false)
+    @JsonView(PositionDetailView.class)
     private UUID userId;
 
     @NotNull(message = "Market ID cannot be null")
     @Column(nullable = false)
+    @JsonView(PositionSummaryView.class)
     private UUID marketId;
 
     /**
@@ -57,6 +68,7 @@ public class Position {
     @NotNull
     @Min(value = 0, message = "YES shares cannot be negative")
     @Column(nullable = false)
+    @JsonView(PositionSummaryView.class)
     private Integer yesShares = 0;
 
     /**
@@ -66,14 +78,19 @@ public class Position {
     @NotNull
     @Min(value = 0, message = "NO shares cannot be negative")
     @Column(nullable = false)
+    @JsonView(PositionSummaryView.class)
     private Integer noShares = 0;
 
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
+    @JsonView(PositionDetailView.class)
+    @JsonFormat(pattern = "dd-MM-yyyy HH:mm:ss")
     private LocalDateTime createdAt;
 
     @UpdateTimestamp
     @Column(nullable = false)
+    @JsonView(PositionDetailView.class)
+    @JsonFormat(pattern = "dd-MM-yyyy HH:mm:ss")
     private LocalDateTime updatedAt;
 
     /**

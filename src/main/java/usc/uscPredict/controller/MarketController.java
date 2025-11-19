@@ -1,5 +1,6 @@
 package usc.uscPredict.controller;
 
+import com.fasterxml.jackson.annotation.JsonView;
 import com.github.fge.jsonpatch.JsonPatchException;
 import jakarta.validation.Valid;
 import lombok.NonNull;
@@ -43,6 +44,7 @@ public class MarketController {
      * @return 200 OK with list of markets
      */
     @GetMapping
+    @JsonView(Market.MarketSummaryView.class)
     public ResponseEntity<Set<Market>> getAllMarkets() {
         Set<Market> markets = marketService.getAllMarkets();
         return new ResponseEntity<>(markets, HttpStatus.OK);
@@ -55,6 +57,7 @@ public class MarketController {
      * @return 200 OK with market, or 404 NOT FOUND
      */
     @GetMapping("/{uuid}")
+    @JsonView(Market.MarketDetailView.class)
     public ResponseEntity<Market> getMarketById(@PathVariable UUID uuid) {
         Market market = marketService.getMarketById(uuid);
         return ResponseEntity.ok(market);
@@ -67,6 +70,7 @@ public class MarketController {
      * @return 201 CREATED with created market, or 400 BAD REQUEST
      */
     @PostMapping
+    @JsonView(Market.MarketDetailView.class)
     public ResponseEntity<Market> createMarket(@RequestBody @Valid @NonNull Market market) {
         Market created = marketService.createMarket(market);
         return new ResponseEntity<>(created, HttpStatus.CREATED);
@@ -80,6 +84,7 @@ public class MarketController {
      * @return 200 OK with updated market, or 404 NOT FOUND
      */
     @PutMapping("/{uuid}")
+    @JsonView(Market.MarketDetailView.class)
     public ResponseEntity<Market> updateMarket(
             @PathVariable UUID uuid,
             @RequestBody @Valid @NonNull Market market) {
@@ -111,6 +116,7 @@ public class MarketController {
      * @return 200 OK with list of markets
      */
     @GetMapping("/event/{eventId}")
+    @JsonView(Market.MarketSummaryView.class)
     public ResponseEntity<Set<Market>> getMarketsByEventId(@PathVariable UUID eventId) {
         Set<Market> markets = marketService.getMarketsByEventId(eventId);
         return new ResponseEntity<>(markets, HttpStatus.OK);
@@ -124,6 +130,7 @@ public class MarketController {
      * @return 200 OK with list of markets
      */
     @GetMapping("/status/{status}")
+    @JsonView(Market.MarketSummaryView.class)
     public ResponseEntity<Set<Market>> getMarketsByStatus(@PathVariable MarketStatus status) {
         Set<Market> markets = marketService.getMarketsByStatus(status);
         return new ResponseEntity<>(markets, HttpStatus.OK);
@@ -138,6 +145,7 @@ public class MarketController {
      * @return 200 OK with updated market, 404 NOT FOUND, or 400 BAD REQUEST
      */
     @PatchMapping("/{uuid}")
+    @JsonView(Market.MarketDetailView.class)
     public ResponseEntity<Market> patchMarket(
             @PathVariable UUID uuid,
             @RequestBody List<Map<String, Object>> updates) throws JsonPatchException {
@@ -160,6 +168,7 @@ public class MarketController {
      * @return 200 OK with settled market, or 404 NOT FOUND
      */
     @PostMapping("/{uuid}/settle")
+    @JsonView(Market.MarketDetailView.class)
     public ResponseEntity<Market> settleMarket(@PathVariable UUID uuid) {
         Market settled = marketService.settleMarket(uuid);
         return ResponseEntity.ok(settled);

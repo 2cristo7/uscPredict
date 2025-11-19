@@ -1,5 +1,6 @@
 package usc.uscPredict.controller;
 
+import com.fasterxml.jackson.annotation.JsonView;
 import com.github.fge.jsonpatch.JsonPatchException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -49,6 +50,7 @@ class UserController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = User.class)))
     })
     @GetMapping
+    @JsonView(User.UserSummaryView.class)
     public ResponseEntity<@NonNull Set<User>> getAllUsers() {
         return new ResponseEntity<>(userService.getUsers().findAll(), HttpStatus.OK);
     }
@@ -63,6 +65,7 @@ class UserController {
             @ApiResponse(responseCode = "404", description = "Usuario no encontrado", content = @Content)
     })
     @GetMapping("/{name}")
+    @JsonView(User.UserDetailView.class)
     public ResponseEntity<User> getUserByName(
             @Parameter(description = "Nombre del usuario a buscar", required = true, example = "Juan Pérez")
             @PathVariable("name") @NotBlank(message = "Name cannot be empty") String name) {
@@ -96,6 +99,7 @@ class UserController {
             @ApiResponse(responseCode = "409", description = "Conflicto - Email ya existe", content = @Content)
     })
     @PostMapping
+    @JsonView(User.UserDetailView.class)
     public ResponseEntity<User> addUser(
             @Parameter(description = "Datos del usuario a crear", required = true)
             @RequestBody @Valid @NonNull User user) {
@@ -114,6 +118,7 @@ class UserController {
             @ApiResponse(responseCode = "404", description = "Usuario no encontrado", content = @Content)
     })
     @PatchMapping("/{uuid}")
+    @JsonView(User.UserDetailView.class)
     public ResponseEntity<User> patchUser(
             @Parameter(description = "UUID del usuario a actualizar", required = true, example = "123e4567-e89b-12d3-a456-426614174000")
             @PathVariable UUID uuid,

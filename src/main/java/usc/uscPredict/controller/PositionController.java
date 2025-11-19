@@ -1,5 +1,6 @@
 package usc.uscPredict.controller;
 
+import com.fasterxml.jackson.annotation.JsonView;
 import jakarta.validation.Valid;
 import lombok.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,6 +37,7 @@ public class PositionController {
      * @return 200 OK with list of positions
      */
     @GetMapping
+    @JsonView(Position.PositionSummaryView.class)
     public ResponseEntity<Set<Position>> getAllPositions() {
         Set<Position> positions = positionService.getAllPositions();
         return new ResponseEntity<>(positions, HttpStatus.OK);
@@ -48,6 +50,7 @@ public class PositionController {
      * @return 200 OK with position, or 404 NOT FOUND
      */
     @GetMapping("/{uuid}")
+    @JsonView(Position.PositionDetailView.class)
     public ResponseEntity<Position> getPositionById(@PathVariable UUID uuid) {
         Position position = positionService.getPositionById(uuid);
         return ResponseEntity.ok(position);
@@ -61,6 +64,7 @@ public class PositionController {
      * @return 200 OK with list of positions
      */
     @GetMapping("/user/{userId}")
+    @JsonView(Position.PositionSummaryView.class)
     public ResponseEntity<Set<Position>> getPositionsByUserId(@PathVariable UUID userId) {
         Set<Position> positions = positionService.getPositionsByUserId(userId);
         return new ResponseEntity<>(positions, HttpStatus.OK);
@@ -74,6 +78,7 @@ public class PositionController {
      * @return 200 OK with list of positions
      */
     @GetMapping("/market/{marketId}")
+    @JsonView(Position.PositionSummaryView.class)
     public ResponseEntity<Set<Position>> getPositionsByMarketId(@PathVariable UUID marketId) {
         Set<Position> positions = positionService.getPositionsByMarketId(marketId);
         return new ResponseEntity<>(positions, HttpStatus.OK);
@@ -88,6 +93,7 @@ public class PositionController {
      * @return 200 OK with position, or 404 NOT FOUND
      */
     @GetMapping("/user/{userId}/market/{marketId}")
+    @JsonView(Position.PositionDetailView.class)
     public ResponseEntity<Position> getPositionByUserIdAndMarketId(
             @PathVariable UUID userId,
             @PathVariable UUID marketId) {
@@ -103,6 +109,7 @@ public class PositionController {
      * @return 201 CREATED with created position
      */
     @PostMapping
+    @JsonView(Position.PositionDetailView.class)
     public ResponseEntity<Position> createPosition(@RequestBody @Valid @NonNull Position position) {
         Position created = positionService.createPosition(position);
         return new ResponseEntity<>(created, HttpStatus.CREATED);
@@ -117,6 +124,7 @@ public class PositionController {
      * @return 200 OK with updated position, or 404 NOT FOUND
      */
     @PutMapping("/{uuid}")
+    @JsonView(Position.PositionDetailView.class)
     public ResponseEntity<Position> updatePosition(
             @PathVariable UUID uuid,
             @RequestBody @Valid @NonNull Position position) {

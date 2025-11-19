@@ -1,5 +1,7 @@
 package usc.uscPredict.model;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -16,6 +18,7 @@ import java.util.UUID;
 @Table(name = "comments")
 @Getter
 @Setter
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class Comment {
 
     @Schema(description = "Identificador único del comentario", example = "123e4567-e89b-12d3-a456-426614174000", accessMode = Schema.AccessMode.READ_ONLY)
@@ -41,6 +44,7 @@ public class Comment {
     @Schema(description = "Fecha y hora de creación del comentario", example = "2025-10-15T14:30:00", accessMode = Schema.AccessMode.READ_ONLY)
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
+    @JsonFormat(pattern = "dd-MM-yyyy HH:mm:ss")
     private LocalDateTime createdAt;
 
     public Comment() {}

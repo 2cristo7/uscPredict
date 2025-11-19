@@ -1,5 +1,6 @@
 package usc.uscPredict.controller;
 
+import com.fasterxml.jackson.annotation.JsonView;
 import com.github.fge.jsonpatch.JsonPatchException;
 import jakarta.validation.Valid;
 import lombok.NonNull;
@@ -43,6 +44,7 @@ public class EventController {
      * @return 200 OK with list of events
      */
     @GetMapping
+    @JsonView(Event.EventSummaryView.class)
     public ResponseEntity<Set<Event>> getAllEvents() {
         Set<Event> events = eventService.getAllEvents();
         return new ResponseEntity<>(events, HttpStatus.OK);
@@ -55,6 +57,7 @@ public class EventController {
      * @return 200 OK with event, or 404 NOT FOUND
      */
     @GetMapping("/{uuid}")
+    @JsonView(Event.EventDetailView.class)
     public ResponseEntity<Event> getEventById(@PathVariable UUID uuid) {
         Event event = eventService.getEventById(uuid);
         return ResponseEntity.ok(event);
@@ -67,6 +70,7 @@ public class EventController {
      * @return 201 CREATED with created event, or 400 BAD REQUEST
      */
     @PostMapping
+    @JsonView(Event.EventDetailView.class)
     public ResponseEntity<Event> createEvent(@RequestBody @Valid @NonNull Event event) {
         Event created = eventService.createEvent(event);
         return new ResponseEntity<>(created, HttpStatus.CREATED);
@@ -80,6 +84,7 @@ public class EventController {
      * @return 200 OK with updated event, or 404 NOT FOUND
      */
     @PutMapping("/{uuid}")
+    @JsonView(Event.EventDetailView.class)
     public ResponseEntity<Event> updateEvent(
             @PathVariable UUID uuid,
             @RequestBody @Valid @NonNull Event event) {
@@ -111,6 +116,7 @@ public class EventController {
      * @return 200 OK with list of events
      */
     @GetMapping("/state/{state}")
+    @JsonView(Event.EventSummaryView.class)
     public ResponseEntity<Set<Event>> getEventsByState(@PathVariable EventState state) {
         Set<Event> events = eventService.getEventsByState(state);
         return new ResponseEntity<>(events, HttpStatus.OK);
@@ -125,6 +131,7 @@ public class EventController {
      * @return 200 OK with updated event, 404 NOT FOUND, or 400 BAD REQUEST
      */
     @PatchMapping("/{uuid}")
+    @JsonView(Event.EventDetailView.class)
     public ResponseEntity<Event> patchEvent(
             @PathVariable UUID uuid,
             @RequestBody List<Map<String, Object>> updates) throws JsonPatchException {
