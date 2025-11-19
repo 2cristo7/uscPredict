@@ -28,6 +28,7 @@ public class Market {
     @Column(nullable = false)
     private String outcome;
 
+    @NotNull(message = "Market status cannot be null")
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private MarketStatus status;

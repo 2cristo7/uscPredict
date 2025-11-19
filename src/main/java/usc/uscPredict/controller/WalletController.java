@@ -1,10 +1,13 @@
 package usc.uscPredict.controller;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotNull;
 import lombok.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import usc.uscPredict.model.Wallet;
 import usc.uscPredict.service.WalletService;
@@ -20,6 +23,7 @@ import java.util.UUID;
  */
 @RestController
 @RequestMapping("/wallets")
+@Validated
 public class WalletController {
 
     private final WalletService walletService;
@@ -104,7 +108,7 @@ public class WalletController {
      * @return 200 OK with updated wallet
      */
     @PostMapping("/deposit")
-    public ResponseEntity<Wallet> deposit(@RequestBody DepositRequest request) {
+    public ResponseEntity<Wallet> deposit(@RequestBody @Valid DepositRequest request) {
         try {
             Wallet wallet = walletService.deposit(request.getUserId(), request.getAmount());
             return new ResponseEntity<>(wallet, HttpStatus.OK);
@@ -122,7 +126,7 @@ public class WalletController {
      * @return 200 OK with updated wallet, or 400 if insufficient funds
      */
     @PostMapping("/withdraw")
-    public ResponseEntity<Wallet> withdraw(@RequestBody WithdrawRequest request) {
+    public ResponseEntity<Wallet> withdraw(@RequestBody @Valid WithdrawRequest request) {
         try {
             Wallet wallet = walletService.withdraw(request.getUserId(), request.getAmount());
             return new ResponseEntity<>(wallet, HttpStatus.OK);
@@ -180,7 +184,11 @@ public class WalletController {
      * Inner class for deposit requests.
      */
     public static class DepositRequest {
+        @NotNull(message = "User ID cannot be null")
         private UUID userId;
+
+        @NotNull(message = "Amount cannot be null")
+        @DecimalMin(value = "0.01", message = "Deposit amount must be at least 0.01")
         private BigDecimal amount;
 
         public UUID getUserId() {
@@ -204,7 +212,11 @@ public class WalletController {
      * Inner class for withdrawal requests.
      */
     public static class WithdrawRequest {
+        @NotNull(message = "User ID cannot be null")
         private UUID userId;
+
+        @NotNull(message = "Amount cannot be null")
+        @DecimalMin(value = "0.01", message = "Withdrawal amount must be at least 0.01")
         private BigDecimal amount;
 
         public UUID getUserId() {

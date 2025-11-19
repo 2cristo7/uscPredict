@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 
@@ -34,10 +35,12 @@ public class User {
 
     @Schema(description = "Hash de la contraseña del usuario", example = "$2a$10$N9qo8uLOickgx2ZMRZoMye", accessMode = Schema.AccessMode.WRITE_ONLY)
     @Setter
+    @NotBlank(message = "Password hash cannot be empty")
     @Column
     private String pswd_hash;
 
     @Schema(description = "Rol del usuario en la plataforma", example = "USER", allowableValues = {"USER", "ADMIN"}, requiredMode = Schema.RequiredMode.REQUIRED)
+    @NotNull(message = "Role cannot be null")
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Role role;

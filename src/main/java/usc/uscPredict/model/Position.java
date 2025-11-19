@@ -1,6 +1,7 @@
 package usc.uscPredict.model;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
@@ -54,6 +55,7 @@ public class Position {
      * These pay $1 each if the event happens.
      */
     @NotNull
+    @Min(value = 0, message = "YES shares cannot be negative")
     @Column(nullable = false)
     private Integer yesShares = 0;
 
@@ -62,6 +64,7 @@ public class Position {
      * These pay $1 each if the event does NOT happen.
      */
     @NotNull
+    @Min(value = 0, message = "NO shares cannot be negative")
     @Column(nullable = false)
     private Integer noShares = 0;
 

@@ -8,7 +8,10 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import lombok.NonNull;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import usc.uscPredict.model.User;
 import usc.uscPredict.service.UserService;
@@ -26,6 +29,7 @@ import java.util.UUID;
 @Tag(name = "Users", description = "API de gestión de usuarios")
 @RestController
 @RequestMapping("users")
+@Validated
 class UserController {
     UserService userService;
     PatchUtils patchUtils;
@@ -61,7 +65,7 @@ class UserController {
     @GetMapping("/{name}")
     public ResponseEntity<User> getUserByName(
             @Parameter(description = "Nombre del usuario a buscar", required = true, example = "Juan Pérez")
-            @PathVariable("name") String name) {
+            @PathVariable("name") @NotBlank(message = "Name cannot be empty") String name) {
         User user = userService.getUserByName(name);
         if (user != null) {
             return new ResponseEntity<>(user, HttpStatus.OK);
@@ -98,7 +102,7 @@ class UserController {
     @PostMapping
     public ResponseEntity<User> addUser(
             @Parameter(description = "Datos del usuario a crear", required = true)
-            @RequestBody @NonNull User user) {
+            @RequestBody @Valid @NonNull User user) {
         User addedUser = userService.addUser(user);
         if (addedUser != null) {
             return new ResponseEntity<>(addedUser, HttpStatus.CREATED);
