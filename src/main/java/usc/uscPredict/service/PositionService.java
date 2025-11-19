@@ -3,6 +3,7 @@ package usc.uscPredict.service;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import usc.uscPredict.exception.PositionNotFoundException;
 import usc.uscPredict.model.Position;
 import usc.uscPredict.repository.PositionRepository;
 
@@ -37,10 +38,12 @@ public class PositionService {
     /**
      * Retrieves a position by UUID.
      * @param uuid The position UUID
-     * @return The position, or null if not found
+     * @return The position if found
+     * @throws PositionNotFoundException if the position is not found
      */
     public Position getPositionById(UUID uuid) {
-        return positionsRepository.findById(uuid).orElse(null);
+        return positionsRepository.findById(uuid)
+                .orElseThrow(() -> new PositionNotFoundException("Position not found with ID: " + uuid));
     }
 
     /**
@@ -65,10 +68,13 @@ public class PositionService {
      * Retrieves a position for a specific user and market.
      * @param userId The user UUID
      * @param marketId The market UUID
-     * @return The position, or null if not found
+     * @return The position if found
+     * @throws PositionNotFoundException if the position is not found
      */
     public Position getPositionByUserIdAndMarketId(UUID userId, UUID marketId) {
-        return positionsRepository.findByUserIdAndMarketId(userId, marketId).orElse(null);
+        return positionsRepository.findByUserIdAndMarketId(userId, marketId)
+                .orElseThrow(() -> new PositionNotFoundException(
+                        "Position not found for user " + userId + " and market " + marketId));
     }
 
     /**
@@ -85,15 +91,16 @@ public class PositionService {
      * Updates an existing position.
      * @param uuid The position UUID
      * @param position The updated position data
-     * @return The updated position, or null if not found
+     * @return The updated position
+     * @throws PositionNotFoundException if the position is not found
      */
     @Transactional
     public Position updatePosition(UUID uuid, Position position) {
-        if (positionsRepository.existsById(uuid)) {
-            position.setUuid(uuid);
-            return positionsRepository.save(position);
+        if (!positionsRepository.existsById(uuid)) {
+            throw new PositionNotFoundException("Position not found with ID: " + uuid);
         }
-        return null;
+        position.setUuid(uuid);
+        return positionsRepository.save(position);
     }
 
     /**

@@ -4,6 +4,8 @@ import lombok.Getter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import usc.uscPredict.exception.OrderNotFoundException;
+import usc.uscPredict.exception.PredictUsernameNotFoundException;
 import usc.uscPredict.model.*;
 import usc.uscPredict.repository.MarketRepository;
 import usc.uscPredict.repository.OrderRepository;
@@ -53,11 +55,12 @@ public class OrderService {
     /**
      * Retrieves a single order by its UUID.
      * @param uuid The order's unique identifier
-     * @return The order if found, null otherwise
+     * @return The order if found
+     * @throws OrderNotFoundException if the order is not found
      */
     public Order getOrderById(UUID uuid) {
-        Optional<Order> order = orderRepository.findById(uuid);
-        return order.orElse(null);
+        return orderRepository.findById(uuid)
+                .orElseThrow(() -> new OrderNotFoundException("Order not found with ID: " + uuid));
     }
 
     /**
@@ -73,9 +76,8 @@ public class OrderService {
     @Transactional
     public Order createOrder(Order order) {
         // 1. Validate user exists
-
         if (!userRepository.existsById(order.getUserId())) {
-            throw new IllegalArgumentException("User not found with ID: " + order.getUserId());
+            throw new PredictUsernameNotFoundException("User not found with ID: " + order.getUserId());
         }
 
         // 2. Validate market exists and is ACTIVE
@@ -139,16 +141,13 @@ public class OrderService {
      * TODO: Add validation (only allow updating PENDING orders)
      * @param uuid The UUID of the order to update
      * @param orderData The new order data
-     * @return The updated order, or null if not found
+     * @return The updated order
+     * @throws OrderNotFoundException if the order is not found
      */
     @Transactional
     public Order updateOrder(UUID uuid, Order orderData) {
-        Optional<Order> existingOpt = orderRepository.findById(uuid);
-        if (existingOpt.isEmpty()) {
-            return null;
-        }
-
-        Order existing = existingOpt.get();
+        Order existing = orderRepository.findById(uuid)
+                .orElseThrow(() -> new OrderNotFoundException("Order not found with ID: " + uuid));
 
         // TODO: Validate that order can be updated
         // - Only PENDING orders can be modified
@@ -166,16 +165,13 @@ public class OrderService {
      * - Create ORDER_CANCELLED transaction
      * - Refund any locked amounts
      * @param uuid The UUID of the order to cancel
-     * @return The cancelled order, or null if not found
+     * @return The cancelled order
+     * @throws OrderNotFoundException if the order is not found
      */
     @Transactional
     public Order cancelOrder(UUID uuid) {
-        Optional<Order> orderOpt = orderRepository.findById(uuid);
-        if (orderOpt.isEmpty()) {
-            return null;
-        }
-
-        Order order = orderOpt.get();
+        Order order = orderRepository.findById(uuid)
+                .orElseThrow(() -> new OrderNotFoundException("Order not found with ID: " + uuid));
 
         // 1. Check order is PENDING or PARTIALLY_FILLED
         if (order.getState() != OrderState.PENDING &&

@@ -53,11 +53,7 @@ public class WalletController {
     @GetMapping("/{uuid}")
     public ResponseEntity<Wallet> getWalletById(@PathVariable UUID uuid) {
         Wallet wallet = walletService.getWalletById(uuid);
-        if (wallet != null) {
-            return new ResponseEntity<>(wallet, HttpStatus.OK);
-        } else {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-        }
+        return ResponseEntity.ok(wallet);
     }
 
     /**
@@ -70,13 +66,8 @@ public class WalletController {
      */
     @GetMapping("/user/{userId}")
     public ResponseEntity<Wallet> getWalletByUserId(@PathVariable UUID userId) {
-        try {
-            Wallet wallet = walletService.getWalletByUserId(userId);
-            return new ResponseEntity<>(wallet, HttpStatus.OK);
-        } catch (IllegalArgumentException e) {
-            // User not found
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-        }
+        Wallet wallet = walletService.getWalletByUserId(userId);
+        return ResponseEntity.ok(wallet);
     }
 
     /**
@@ -88,16 +79,8 @@ public class WalletController {
      */
     @PostMapping
     public ResponseEntity<Wallet> createWallet(@RequestBody @Valid @NonNull Wallet wallet) {
-        try {
-            Wallet created = walletService.createWallet(wallet);
-            return new ResponseEntity<>(created, HttpStatus.CREATED);
-        } catch (IllegalArgumentException e) {
-            // User not found
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
-        } catch (IllegalStateException e) {
-            // Wallet already exists
-            return new ResponseEntity<>(HttpStatus.CONFLICT);
-        }
+        Wallet created = walletService.createWallet(wallet);
+        return new ResponseEntity<>(created, HttpStatus.CREATED);
     }
 
     /**
@@ -109,13 +92,8 @@ public class WalletController {
      */
     @PostMapping("/deposit")
     public ResponseEntity<Wallet> deposit(@RequestBody @Valid DepositRequest request) {
-        try {
-            Wallet wallet = walletService.deposit(request.getUserId(), request.getAmount());
-            return new ResponseEntity<>(wallet, HttpStatus.OK);
-        } catch (IllegalArgumentException e) {
-            // Invalid amount or user not found
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
-        }
+        Wallet wallet = walletService.deposit(request.getUserId(), request.getAmount());
+        return ResponseEntity.ok(wallet);
     }
 
     /**
@@ -127,16 +105,8 @@ public class WalletController {
      */
     @PostMapping("/withdraw")
     public ResponseEntity<Wallet> withdraw(@RequestBody @Valid WithdrawRequest request) {
-        try {
-            Wallet wallet = walletService.withdraw(request.getUserId(), request.getAmount());
-            return new ResponseEntity<>(wallet, HttpStatus.OK);
-        } catch (IllegalArgumentException e) {
-            // Invalid amount or user not found
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
-        } catch (IllegalStateException e) {
-            // Insufficient balance
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
-        }
+        Wallet wallet = walletService.withdraw(request.getUserId(), request.getAmount());
+        return ResponseEntity.ok(wallet);
     }
 
     /**
@@ -147,20 +117,16 @@ public class WalletController {
      */
     @GetMapping("/user/{userId}/balance")
     public ResponseEntity<BalanceInfo> getUserBalance(@PathVariable UUID userId) {
-        try {
-            Wallet wallet = walletService.getWalletByUserId(userId);
-            BigDecimal total = walletService.getTotalBalance(userId);
+        Wallet wallet = walletService.getWalletByUserId(userId);
+        BigDecimal total = walletService.getTotalBalance(userId);
 
-            BalanceInfo info = new BalanceInfo(
-                wallet.getBalance(),
-                wallet.getLockedBalance(),
-                total
-            );
+        BalanceInfo info = new BalanceInfo(
+            wallet.getBalance(),
+            wallet.getLockedBalance(),
+            total
+        );
 
-            return new ResponseEntity<>(info, HttpStatus.OK);
-        } catch (IllegalArgumentException e) {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-        }
+        return ResponseEntity.ok(info);
     }
 
     /**

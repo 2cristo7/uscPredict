@@ -1,5 +1,6 @@
 package usc.uscPredict.exception;
 
+import com.github.fge.jsonpatch.JsonPatchException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -13,10 +14,12 @@ import jakarta.validation.ConstraintViolationException;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.NoSuchElementException;
 
 /**
- * Global exception handler for validation errors across all controllers.
- * Handles both @RequestBody validation (@Valid) and path variable/request parameter validation (@Validated).
+ * Global exception handler for all controllers.
+ * Implements centralized error handling following Spring REST best practices.
+ * Handles validation errors, domain exceptions, and unexpected errors with consistent response format.
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -76,8 +79,94 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handles custom not-found exceptions.
+     * Returns 404 NOT_FOUND when a requested resource does not exist.
+     *
+     * @param ex The not-found exception
+     * @return ResponseEntity with 404 status and error message
+     */
+    @ExceptionHandler({
+        PredictUsernameNotFoundException.class,
+        EventNotFoundException.class,
+        OrderNotFoundException.class,
+        MarketNotFoundException.class,
+        WalletNotFoundException.class,
+        PositionNotFoundException.class,
+        TransactionNotFoundException.class,
+        NoSuchElementException.class
+    })
+    public ResponseEntity<ErrorResponse> handleNotFound(RuntimeException ex) {
+        ErrorResponse response = new ErrorResponse(
+            HttpStatus.NOT_FOUND.value(),
+            "Resource not found",
+            Map.of("error", ex.getMessage()),
+            LocalDateTime.now()
+        );
+
+        return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+    }
+
+    /**
+     * Handles business logic validation errors.
+     * Returns 400 BAD_REQUEST when input fails business rules validation.
+     *
+     * @param ex The illegal argument exception
+     * @return ResponseEntity with 400 status and error message
+     */
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ErrorResponse> handleIllegalArgument(IllegalArgumentException ex) {
+        ErrorResponse response = new ErrorResponse(
+            HttpStatus.BAD_REQUEST.value(),
+            "Invalid request",
+            Map.of("error", ex.getMessage()),
+            LocalDateTime.now()
+        );
+
+        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+    }
+
+    /**
+     * Handles illegal state errors (e.g., insufficient balance, invalid state transitions).
+     * Returns 409 CONFLICT when operation cannot be performed due to current state.
+     *
+     * @param ex The illegal state exception
+     * @return ResponseEntity with 409 status and error message
+     */
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ErrorResponse> handleIllegalState(IllegalStateException ex) {
+        ErrorResponse response = new ErrorResponse(
+            HttpStatus.CONFLICT.value(),
+            "Operation not allowed",
+            Map.of("error", ex.getMessage()),
+            LocalDateTime.now()
+        );
+
+        return new ResponseEntity<>(response, HttpStatus.CONFLICT);
+    }
+
+    /**
+     * Handles JSON Patch operation errors.
+     * Returns 400 BAD_REQUEST when a PATCH request contains invalid operations.
+     *
+     * @param ex The JSON patch exception
+     * @return ResponseEntity with 400 status and error message
+     */
+    @ExceptionHandler(JsonPatchException.class)
+    public ResponseEntity<ErrorResponse> handleJsonPatch(JsonPatchException ex) {
+        ErrorResponse response = new ErrorResponse(
+            HttpStatus.BAD_REQUEST.value(),
+            "Invalid patch operation",
+            Map.of("error", ex.getMessage()),
+            LocalDateTime.now()
+        );
+
+        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+    }
+
+    /**
      * Catch-all handler for unexpected exceptions.
      * Provides a consistent error response structure for unhandled errors.
+     * Returns 500 INTERNAL_SERVER_ERROR for unexpected failures.
      *
      * @param ex The exception that occurred
      * @return ResponseEntity with generic error message
@@ -92,56 +181,5 @@ public class GlobalExceptionHandler {
         );
 
         return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
-    }
-
-    /**
-     * Standardized error response structure.
-     * Provides consistent error format across all validation failures.
-     */
-    public static class ErrorResponse {
-        private int status;
-        private String message;
-        private Map<String, String> errors;
-        private LocalDateTime timestamp;
-
-        public ErrorResponse(int status, String message, Map<String, String> errors, LocalDateTime timestamp) {
-            this.status = status;
-            this.message = message;
-            this.errors = errors;
-            this.timestamp = timestamp;
-        }
-
-        // Getters and setters
-        public int getStatus() {
-            return status;
-        }
-
-        public void setStatus(int status) {
-            this.status = status;
-        }
-
-        public String getMessage() {
-            return message;
-        }
-
-        public void setMessage(String message) {
-            this.message = message;
-        }
-
-        public Map<String, String> getErrors() {
-            return errors;
-        }
-
-        public void setErrors(Map<String, String> errors) {
-            this.errors = errors;
-        }
-
-        public LocalDateTime getTimestamp() {
-            return timestamp;
-        }
-
-        public void setTimestamp(LocalDateTime timestamp) {
-            this.timestamp = timestamp;
-        }
     }
 }

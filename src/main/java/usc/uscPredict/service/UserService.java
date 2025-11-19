@@ -60,16 +60,17 @@ public class UserService {
     }
 
     public User getUserById(UUID uuid) {
-        return users.findById(uuid).orElse(null);
+        return users.findById(uuid)
+                .orElseThrow(() -> new PredictUsernameNotFoundException("User not found with ID: " + uuid));
     }
 
     public User updateUser(UUID uuid, User user) {
-        if (users.existsById(uuid)) {
-            // Note: User entity doesn't have setUuid, the uuid is auto-generated
-            // We need to save the updated user data while preserving the ID
-            return users.save(user);
+        if (!users.existsById(uuid)) {
+            throw new PredictUsernameNotFoundException("User not found with ID: " + uuid);
         }
-        return null;
+        // Note: User entity doesn't have setUuid, the uuid is auto-generated
+        // We need to save the updated user data while preserving the ID
+        return users.save(user);
     }
 
 }

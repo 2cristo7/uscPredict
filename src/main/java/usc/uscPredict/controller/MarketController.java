@@ -57,11 +57,7 @@ public class MarketController {
     @GetMapping("/{uuid}")
     public ResponseEntity<Market> getMarketById(@PathVariable UUID uuid) {
         Market market = marketService.getMarketById(uuid);
-        if (market != null) {
-            return new ResponseEntity<>(market, HttpStatus.OK);
-        } else {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-        }
+        return ResponseEntity.ok(market);
     }
 
     /**
@@ -73,11 +69,7 @@ public class MarketController {
     @PostMapping
     public ResponseEntity<Market> createMarket(@RequestBody @Valid @NonNull Market market) {
         Market created = marketService.createMarket(market);
-        if (created != null) {
-            return new ResponseEntity<>(created, HttpStatus.CREATED);
-        } else {
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
-        }
+        return new ResponseEntity<>(created, HttpStatus.CREATED);
     }
 
     /**
@@ -92,11 +84,7 @@ public class MarketController {
             @PathVariable UUID uuid,
             @RequestBody @Valid @NonNull Market market) {
         Market updated = marketService.updateMarket(uuid, market);
-        if (updated != null) {
-            return new ResponseEntity<>(updated, HttpStatus.OK);
-        } else {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-        }
+        return ResponseEntity.ok(updated);
     }
 
     /**
@@ -152,25 +140,16 @@ public class MarketController {
     @PatchMapping("/{uuid}")
     public ResponseEntity<Market> patchMarket(
             @PathVariable UUID uuid,
-            @RequestBody List<Map<String, Object>> updates) {
-        try {
-            // 1. Obter o mercado da base de datos
-            Market existingMarket = marketService.getMarketById(uuid);
-            if (existingMarket == null) {
-                return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-            }
+            @RequestBody List<Map<String, Object>> updates) throws JsonPatchException {
+        // 1. Obter o mercado da base de datos (throws exception if not found)
+        Market existingMarket = marketService.getMarketById(uuid);
 
-            // 2. Aplicar as operacións JSON-Patch
-            Market patchedMarket = patchUtils.applyPatch(existingMarket, updates);
+        // 2. Aplicar as operacións JSON-Patch (JsonPatchException handled globally)
+        Market patchedMarket = patchUtils.applyPatch(existingMarket, updates);
 
-            // 3. Gardar o recurso actualizado
-            Market updated = marketService.updateMarket(uuid, patchedMarket);
-            return new ResponseEntity<>(updated, HttpStatus.OK);
-
-        } catch (JsonPatchException e) {
-            // Erro ao aplicar o parche (operación inválida, path incorrecto, etc.)
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
-        }
+        // 3. Gardar o recurso actualizado
+        Market updated = marketService.updateMarket(uuid, patchedMarket);
+        return ResponseEntity.ok(updated);
     }
 
     /**
@@ -183,11 +162,7 @@ public class MarketController {
     @PostMapping("/{uuid}/settle")
     public ResponseEntity<Market> settleMarket(@PathVariable UUID uuid) {
         Market settled = marketService.settleMarket(uuid);
-        if (settled != null) {
-            return new ResponseEntity<>(settled, HttpStatus.OK);
-        } else {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-        }
+        return ResponseEntity.ok(settled);
     }
 
     /**

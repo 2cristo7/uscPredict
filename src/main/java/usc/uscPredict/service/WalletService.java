@@ -4,6 +4,8 @@ import lombok.Getter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import usc.uscPredict.exception.PredictUsernameNotFoundException;
+import usc.uscPredict.exception.WalletNotFoundException;
 import usc.uscPredict.model.TransactionType;
 import usc.uscPredict.model.Wallet;
 import usc.uscPredict.repository.UserRepository;
@@ -47,11 +49,12 @@ public class WalletService {
     /**
      * Retrieves a single wallet by its UUID.
      * @param uuid The wallet's unique identifier
-     * @return The wallet if found, null otherwise
+     * @return The wallet if found
+     * @throws WalletNotFoundException if the wallet is not found
      */
     public Wallet getWalletById(UUID uuid) {
-        Optional<Wallet> wallet = walletRepository.findById(uuid);
-        return wallet.orElse(null);
+        return walletRepository.findById(uuid)
+                .orElseThrow(() -> new WalletNotFoundException("Wallet not found with ID: " + uuid));
     }
 
     /**
@@ -70,7 +73,7 @@ public class WalletService {
 
         // Verify user exists
         if (!userRepository.existsById(userId)) {
-            throw new IllegalArgumentException("User not found with ID: " + userId);
+            throw new PredictUsernameNotFoundException("User not found with ID: " + userId);
         }
 
         // Create new wallet with zero balance
@@ -88,7 +91,7 @@ public class WalletService {
     public Wallet createWallet(Wallet wallet) {
         // Verify user exists
         if (!userRepository.existsById(wallet.getUserId())) {
-            throw new IllegalArgumentException("User not found");
+            throw new PredictUsernameNotFoundException("User not found with ID: " + wallet.getUserId());
         }
 
         // Check if wallet already exists for this user

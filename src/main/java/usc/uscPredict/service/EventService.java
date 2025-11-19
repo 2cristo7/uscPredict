@@ -4,6 +4,7 @@ import lombok.Getter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import usc.uscPredict.exception.EventNotFoundException;
 import usc.uscPredict.model.Event;
 import usc.uscPredict.model.EventState;
 import usc.uscPredict.repository.EventRepository;
@@ -38,11 +39,12 @@ public class EventService {
     /**
      * Retrieves a single event by its UUID.
      * @param uuid The event's unique identifier
-     * @return The event if found, null otherwise
+     * @return The event if found
+     * @throws EventNotFoundException if the event is not found
      */
     public Event getEventById(UUID uuid) {
-        Optional<Event> event = eventRepository.findById(uuid);
-        return event.orElse(null);
+        return eventRepository.findById(uuid)
+                .orElseThrow(() -> new EventNotFoundException("Event not found with ID: " + uuid));
     }
 
     /**
@@ -65,16 +67,13 @@ public class EventService {
      * TODO: Add validation logic (e.g., can't modify settled events)
      * @param uuid The UUID of the event to update
      * @param eventData The new event data
-     * @return The updated event, or null if not found
+     * @return The updated event
+     * @throws EventNotFoundException if the event is not found
      */
     @Transactional
     public Event updateEvent(UUID uuid, Event eventData) {
-        Optional<Event> existingOpt = eventRepository.findById(uuid);
-        if (existingOpt.isEmpty()) {
-            return null;
-        }
-
-        Event existing = existingOpt.get();
+        Event existing = eventRepository.findById(uuid)
+                .orElseThrow(() -> new EventNotFoundException("Event not found with ID: " + uuid));
 
         // TODO: Implement update logic
         // - Validate state transitions (OPEN -> CLOSED -> SETTLED)
@@ -116,16 +115,13 @@ public class EventService {
      * TODO: Implement state transition validation logic
      * @param uuid The event UUID
      * @param newState The new state
-     * @return The updated event, or null if not found
+     * @return The updated event
+     * @throws EventNotFoundException if the event is not found
      */
     @Transactional
     public Event changeEventState(UUID uuid, EventState newState) {
-        Optional<Event> eventOpt = eventRepository.findById(uuid);
-        if (eventOpt.isEmpty()) {
-            return null;
-        }
-
-        Event event = eventOpt.get();
+        Event event = eventRepository.findById(uuid)
+                .orElseThrow(() -> new EventNotFoundException("Event not found with ID: " + uuid));
 
         // TODO: Validate state transition
         // OPEN -> CLOSED (valid)

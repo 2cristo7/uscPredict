@@ -55,11 +55,7 @@ public class TransactionController {
     @GetMapping("/{uuid}")
     public ResponseEntity<Transaction> getTransactionById(@PathVariable UUID uuid) {
         Transaction transaction = transactionService.getTransactionById(uuid);
-        if (transaction != null) {
-            return new ResponseEntity<>(transaction, HttpStatus.OK);
-        } else {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-        }
+        return ResponseEntity.ok(transaction);
     }
 
     /**

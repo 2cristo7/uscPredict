@@ -50,11 +50,7 @@ public class PositionController {
     @GetMapping("/{uuid}")
     public ResponseEntity<Position> getPositionById(@PathVariable UUID uuid) {
         Position position = positionService.getPositionById(uuid);
-        if (position != null) {
-            return new ResponseEntity<>(position, HttpStatus.OK);
-        } else {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-        }
+        return ResponseEntity.ok(position);
     }
 
     /**
@@ -96,11 +92,7 @@ public class PositionController {
             @PathVariable UUID userId,
             @PathVariable UUID marketId) {
         Position position = positionService.getPositionByUserIdAndMarketId(userId, marketId);
-        if (position != null) {
-            return new ResponseEntity<>(position, HttpStatus.OK);
-        } else {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-        }
+        return ResponseEntity.ok(position);
     }
 
     /**
@@ -129,11 +121,7 @@ public class PositionController {
             @PathVariable UUID uuid,
             @RequestBody @Valid @NonNull Position position) {
         Position updated = positionService.updatePosition(uuid, position);
-        if (updated != null) {
-            return new ResponseEntity<>(updated, HttpStatus.OK);
-        } else {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-        }
+        return ResponseEntity.ok(updated);
     }
 
     /**

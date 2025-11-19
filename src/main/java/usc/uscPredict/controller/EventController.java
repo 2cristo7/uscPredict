@@ -57,11 +57,7 @@ public class EventController {
     @GetMapping("/{uuid}")
     public ResponseEntity<Event> getEventById(@PathVariable UUID uuid) {
         Event event = eventService.getEventById(uuid);
-        if (event != null) {
-            return new ResponseEntity<>(event, HttpStatus.OK);
-        } else {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-        }
+        return ResponseEntity.ok(event);
     }
 
     /**
@@ -73,11 +69,7 @@ public class EventController {
     @PostMapping
     public ResponseEntity<Event> createEvent(@RequestBody @Valid @NonNull Event event) {
         Event created = eventService.createEvent(event);
-        if (created != null) {
-            return new ResponseEntity<>(created, HttpStatus.CREATED);
-        } else {
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
-        }
+        return new ResponseEntity<>(created, HttpStatus.CREATED);
     }
 
     /**
@@ -92,11 +84,7 @@ public class EventController {
             @PathVariable UUID uuid,
             @RequestBody @Valid @NonNull Event event) {
         Event updated = eventService.updateEvent(uuid, event);
-        if (updated != null) {
-            return new ResponseEntity<>(updated, HttpStatus.OK);
-        } else {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-        }
+        return ResponseEntity.ok(updated);
     }
 
     /**
@@ -139,24 +127,15 @@ public class EventController {
     @PatchMapping("/{uuid}")
     public ResponseEntity<Event> patchEvent(
             @PathVariable UUID uuid,
-            @RequestBody List<Map<String, Object>> updates) {
-        try {
-            // 1. Obter o evento da base de datos
-            Event existingEvent = eventService.getEventById(uuid);
-            if (existingEvent == null) {
-                return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-            }
+            @RequestBody List<Map<String, Object>> updates) throws JsonPatchException {
+        // 1. Obter o evento da base de datos (throws exception if not found)
+        Event existingEvent = eventService.getEventById(uuid);
 
-            // 2. Aplicar as operacións JSON-Patch
-            Event patchedEvent = patchUtils.applyPatch(existingEvent, updates);
+        // 2. Aplicar as operacións JSON-Patch (JsonPatchException handled globally)
+        Event patchedEvent = patchUtils.applyPatch(existingEvent, updates);
 
-            // 3. Gardar o recurso actualizado
-            Event updated = eventService.updateEvent(uuid, patchedEvent);
-            return new ResponseEntity<>(updated, HttpStatus.OK);
-
-        } catch (JsonPatchException e) {
-            // Erro ao aplicar o parche (operación inválida, path incorrecto, etc.)
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
-        }
+        // 3. Gardar o recurso actualizado
+        Event updated = eventService.updateEvent(uuid, patchedEvent);
+        return ResponseEntity.ok(updated);
     }
 }

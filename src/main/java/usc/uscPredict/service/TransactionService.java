@@ -4,6 +4,7 @@ import lombok.Getter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import usc.uscPredict.exception.TransactionNotFoundException;
 import usc.uscPredict.model.Transaction;
 import usc.uscPredict.model.TransactionType;
 import usc.uscPredict.repository.TransactionRepository;
@@ -44,11 +45,12 @@ public class TransactionService {
     /**
      * Retrieves a single transaction by its UUID.
      * @param uuid The transaction's unique identifier
-     * @return The transaction if found, null otherwise
+     * @return The transaction if found
+     * @throws TransactionNotFoundException if the transaction is not found
      */
     public Transaction getTransactionById(UUID uuid) {
-        Optional<Transaction> transaction = transactionRepository.findById(uuid);
-        return transaction.orElse(null);
+        return transactionRepository.findById(uuid)
+                .orElseThrow(() -> new TransactionNotFoundException("Transaction not found with ID: " + uuid));
     }
 
     /**

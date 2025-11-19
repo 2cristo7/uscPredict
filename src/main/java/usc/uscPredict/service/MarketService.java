@@ -4,6 +4,8 @@ import lombok.Getter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import usc.uscPredict.exception.EventNotFoundException;
+import usc.uscPredict.exception.MarketNotFoundException;
 import usc.uscPredict.model.*;
 import usc.uscPredict.repository.EventRepository;
 import usc.uscPredict.repository.MarketRepository;
@@ -58,11 +60,12 @@ public class MarketService {
     /**
      * Retrieves a single market by its UUID.
      * @param uuid The market's unique identifier
-     * @return The market if found, null otherwise
+     * @return The market if found
+     * @throws MarketNotFoundException if the market is not found
      */
     public Market getMarketById(UUID uuid) {
-        Optional<Market> market = marketRepository.findById(uuid);
-        return market.orElse(null);
+        return marketRepository.findById(uuid)
+                .orElseThrow(() -> new MarketNotFoundException("Market not found with ID: " + uuid));
     }
 
     /**
@@ -78,11 +81,8 @@ public class MarketService {
     public Market createMarket(Market market) {
 
         Event event = eventRepository.findById(market.getEventId())
-                .orElseThrow(() -> new IllegalArgumentException("Event ID does not exist"));
-        // - Verify eventId exists in database
-        if (!eventRepository.existsById(market.getEventId())) {
-            throw new IllegalArgumentException("Event ID does not exist");
-        }
+                .orElseThrow(() -> new EventNotFoundException("Event not found with ID: " + market.getEventId()));
+
         // - Check event state allows new markets
         if (event.getState() != EventState.OPEN) {
             throw new IllegalArgumentException("Cannot create market for non-OPEN event");

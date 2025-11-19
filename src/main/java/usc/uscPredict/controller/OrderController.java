@@ -57,11 +57,7 @@ public class OrderController {
     @GetMapping("/{uuid}")
     public ResponseEntity<Order> getOrderById(@PathVariable UUID uuid) {
         Order order = orderService.getOrderById(uuid);
-        if (order != null) {
-            return new ResponseEntity<>(order, HttpStatus.OK);
-        } else {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-        }
+        return ResponseEntity.ok(order);
     }
 
     /**
@@ -72,20 +68,9 @@ public class OrderController {
      * @return 201 CREATED with created order, or 400 BAD REQUEST
      */
     @PostMapping
-    public ResponseEntity<?> createOrder(@RequestBody @Valid @NonNull Order order) {
-        try {
-            Order created = orderService.createOrder(order);
-            if (created != null) {
-                return new ResponseEntity<>(created, HttpStatus.CREATED);
-            } else {
-                return ResponseEntity.badRequest().body("User or Market not found");
-            }
-        } catch (IllegalStateException e) {
-            // Handle business logic errors (insufficient funds, invalid market, etc.)
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
+    public ResponseEntity<Order> createOrder(@RequestBody @Valid @NonNull Order order) {
+        Order created = orderService.createOrder(order);
+        return new ResponseEntity<>(created, HttpStatus.CREATED);
     }
 
     /**
@@ -101,11 +86,7 @@ public class OrderController {
             @PathVariable UUID uuid,
             @RequestBody @Valid @NonNull Order order) {
         Order updated = orderService.updateOrder(uuid, order);
-        if (updated != null) {
-            return new ResponseEntity<>(updated, HttpStatus.OK);
-        } else {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-        }
+        return ResponseEntity.ok(updated);
     }
 
     /**
@@ -119,36 +100,24 @@ public class OrderController {
      * @return 200 OK with updated order, 404 NOT FOUND, or 400 BAD REQUEST
      */
     @PatchMapping("/{uuid}")
-    public ResponseEntity<?> patchOrder(
+    public ResponseEntity<Order> patchOrder(
             @PathVariable UUID uuid,
-            @RequestBody List<Map<String, Object>> updates) {
-        try {
-            // 1. Obter a orden da base de datos
-            Order existingOrder = orderService.getOrderById(uuid);
-            if (existingOrder == null) {
-                return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-            }
+            @RequestBody List<Map<String, Object>> updates) throws JsonPatchException {
+        // 1. Obter a orden da base de datos (throws exception if not found)
+        Order existingOrder = orderService.getOrderById(uuid);
 
-            // 2. Validar que a orden pode ser modificada (só PENDING ou PARTIALLY_FILLED)
-            if (existingOrder.getState() != OrderState.PENDING &&
-                existingOrder.getState() != OrderState.PARTIALLY_FILLED) {
-                return ResponseEntity.badRequest()
-                    .body("Only PENDING or PARTIALLY_FILLED orders can be modified");
-            }
-
-            // 3. Aplicar as operacións JSON-Patch
-            Order patchedOrder = patchUtils.applyPatch(existingOrder, updates);
-
-            // 4. Gardar a orden actualizada
-            Order updated = orderService.patchOrder(uuid, patchedOrder);
-            return new ResponseEntity<>(updated, HttpStatus.OK);
-
-        } catch (JsonPatchException e) {
-            // Erro ao aplicar o parche (operación inválida, path incorrecto, etc.)
-            return ResponseEntity.badRequest().body("Invalid patch operation: " + e.getMessage());
-        } catch (IllegalStateException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
+        // 2. Validar que a orden pode ser modificada (só PENDING ou PARTIALLY_FILLED)
+        if (existingOrder.getState() != OrderState.PENDING &&
+            existingOrder.getState() != OrderState.PARTIALLY_FILLED) {
+            throw new IllegalStateException("Only PENDING or PARTIALLY_FILLED orders can be modified");
         }
+
+        // 3. Aplicar as operacións JSON-Patch (JsonPatchException handled globally)
+        Order patchedOrder = patchUtils.applyPatch(existingOrder, updates);
+
+        // 4. Gardar a orden actualizada (IllegalStateException handled globally)
+        Order updated = orderService.patchOrder(uuid, patchedOrder);
+        return ResponseEntity.ok(updated);
     }
 
     /**
@@ -160,11 +129,7 @@ public class OrderController {
     @PostMapping("/{uuid}/cancel")
     public ResponseEntity<Order> cancelOrder(@PathVariable UUID uuid) {
         Order cancelled = orderService.cancelOrder(uuid);
-        if (cancelled != null) {
-            return new ResponseEntity<>(cancelled, HttpStatus.OK);
-        } else {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-        }
+        return ResponseEntity.ok(cancelled);
     }
 
     /**

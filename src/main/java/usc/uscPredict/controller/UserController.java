@@ -67,11 +67,7 @@ class UserController {
             @Parameter(description = "Nombre del usuario a buscar", required = true, example = "Juan Pérez")
             @PathVariable("name") @NotBlank(message = "Name cannot be empty") String name) {
         User user = userService.getUserByName(name);
-        if (user != null) {
-            return new ResponseEntity<>(user, HttpStatus.OK);
-        } else {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-        }
+        return ResponseEntity.ok(user);
     }
 
     @Operation(
@@ -104,11 +100,7 @@ class UserController {
             @Parameter(description = "Datos del usuario a crear", required = true)
             @RequestBody @Valid @NonNull User user) {
         User addedUser = userService.addUser(user);
-        if (addedUser != null) {
-            return new ResponseEntity<>(addedUser, HttpStatus.CREATED);
-        } else {
-            return new ResponseEntity<>(HttpStatus.CONFLICT);
-        }
+        return new ResponseEntity<>(addedUser, HttpStatus.CREATED);
     }
 
     @Operation(
@@ -126,25 +118,16 @@ class UserController {
             @Parameter(description = "UUID del usuario a actualizar", required = true, example = "123e4567-e89b-12d3-a456-426614174000")
             @PathVariable UUID uuid,
             @Parameter(description = "Lista de operaciones JSON-Patch", required = true)
-            @RequestBody List<Map<String, Object>> updates) {
-        try {
-            // 1. Obter o usuario da base de datos
-            User existingUser = userService.getUserById(uuid);
-            if (existingUser == null) {
-                return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-            }
+            @RequestBody List<Map<String, Object>> updates) throws JsonPatchException {
+        // 1. Obter o usuario da base de datos (throws exception if not found)
+        User existingUser = userService.getUserById(uuid);
 
-            // 2. Aplicar as operacións JSON-Patch
-            User patchedUser = patchUtils.applyPatch(existingUser, updates);
+        // 2. Aplicar as operacións JSON-Patch (JsonPatchException handled globally)
+        User patchedUser = patchUtils.applyPatch(existingUser, updates);
 
-            // 3. Gardar o usuario actualizado
-            User updated = userService.updateUser(uuid, patchedUser);
-            return new ResponseEntity<>(updated, HttpStatus.OK);
-
-        } catch (JsonPatchException e) {
-            // Erro ao aplicar o parche (operación inválida, path incorrecto, etc.)
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
-        }
+        // 3. Gardar o usuario actualizado
+        User updated = userService.updateUser(uuid, patchedUser);
+        return ResponseEntity.ok(updated);
     }
 }
 

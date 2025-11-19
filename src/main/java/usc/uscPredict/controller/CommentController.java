@@ -98,24 +98,15 @@ public class CommentController {
             @Parameter(description = "UUID del comentario a editar", required = true, example = "123e4567-e89b-12d3-a456-426614174000")
             @PathVariable UUID commentId,
             @Parameter(description = "Lista de operaciones JSON-Patch", required = true)
-            @RequestBody List<Map<String, Object>> updates) {
-        try {
-            // 1. Obter o comentario da base de datos
-            Comment existingComment = service.getCommentById(commentId);
-            if (existingComment == null) {
-                return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-            }
+            @RequestBody List<Map<String, Object>> updates) throws JsonPatchException {
+        // 1. Obter o comentario da base de datos (throws exception if not found)
+        Comment existingComment = service.getCommentById(commentId);
 
-            // 2. Aplicar as operacións JSON-Patch
-            Comment patchedComment = patchUtils.applyPatch(existingComment, updates);
+        // 2. Aplicar as operacións JSON-Patch (JsonPatchException handled globally)
+        Comment patchedComment = patchUtils.applyPatch(existingComment, updates);
 
-            // 3. Gardar o comentario actualizado
-            Comment updated = service.updateComment(commentId, patchedComment);
-            return new ResponseEntity<>(updated, HttpStatus.OK);
-
-        } catch (JsonPatchException e) {
-            // Erro ao aplicar o parche (operación inválida, path incorrecto, etc.)
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
-        }
+        // 3. Gardar o comentario actualizado
+        Comment updated = service.updateComment(commentId, patchedComment);
+        return ResponseEntity.ok(updated);
     }
 }
