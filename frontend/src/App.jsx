@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import { useAuth } from './context/AuthContext';
+import LoginModal from './components/LoginModal';
 import Users from './components/Users';
 import Wallets from './components/Wallets';
 import Markets from './components/Markets';
@@ -6,37 +8,73 @@ import Orders from './components/Orders';
 import Events from './components/Events';
 
 function App() {
-  const [activeTab, setActiveTab] = useState('users');
+  const { user, isAuthenticated, isAdmin, loading, logout } = useAuth();
+  const [activeTab, setActiveTab] = useState('events');
 
-  const tabs = [
-    { id: 'users', name: 'Users', component: Users },
-    { id: 'wallets', name: 'Wallets', component: Wallets },
-    { id: 'events', name: 'Eventos', component: Events },
-    { id: 'markets', name: 'Markets & Events', component: Markets },
-    { id: 'orders', name: 'Orders & Positions', component: Orders },
-  ];
+  // Define tabs with role requirements
+  const allTabs = useMemo(() => [
+    { id: 'events', name: 'Events', component: Events, adminOnly: false },
+    { id: 'markets', name: 'Markets', component: Markets, adminOnly: false },
+    { id: 'orders', name: 'Orders', component: Orders, adminOnly: false },
+    { id: 'wallets', name: 'Wallets', component: Wallets, adminOnly: true },
+    { id: 'users', name: 'Users', component: Users, adminOnly: true },
+  ], []);
 
-  const ActiveComponent = tabs.find(tab => tab.id === activeTab)?.component || Users;
+  // Filter tabs based on role
+  const visibleTabs = useMemo(() => {
+    return allTabs.filter(tab => !tab.adminOnly || isAdmin);
+  }, [allTabs, isAdmin]);
+
+  // Reset to first available tab if current is hidden
+  const currentTab = visibleTabs.find(t => t.id === activeTab) || visibleTabs[0];
+  const ActiveComponent = currentTab?.component || Events;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="text-xl text-gray-600">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <LoginModal />;
+  }
 
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Header */}
       <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 py-6">
-          <h1 className="text-3xl font-bold text-gray-900">
-            USC Predict - Admin Dashboard
-          </h1>
-          <p className="text-sm text-gray-600 mt-1">
-            Prediction Market Management System
-          </p>
+        <div className="max-w-7xl mx-auto px-4 py-6 flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">
+              USC Predict - {isAdmin ? 'Admin' : 'User'} Dashboard
+            </h1>
+            <p className="text-sm text-gray-600 mt-1">
+              Welcome, {user?.name}
+            </p>
+          </div>
+          <div className="flex items-center gap-4">
+            <span className={`px-2 py-1 rounded text-xs ${
+              isAdmin ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
+            }`}>
+              {user?.role}
+            </span>
+            <button
+              onClick={logout}
+              className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
+            >
+              Logout
+            </button>
+          </div>
         </div>
       </header>
 
-      {/* Navigation */}
+      {/* Navigation - Role-based tabs */}
       <nav className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex space-x-8">
-            {tabs.map((tab) => (
+            {visibleTabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
@@ -47,6 +85,9 @@ function App() {
                 }`}
               >
                 {tab.name}
+                {tab.adminOnly && (
+                  <span className="ml-1 text-xs text-purple-600">(Admin)</span>
+                )}
               </button>
             ))}
           </div>
@@ -61,7 +102,7 @@ function App() {
       {/* Footer */}
       <footer className="bg-white mt-12 border-t">
         <div className="max-w-7xl mx-auto px-4 py-6 text-center text-sm text-gray-500">
-          USC Predict © 2025 - Prediction Market Platform
+          USC Predict - Prediction Market Platform
         </div>
       </footer>
     </div>

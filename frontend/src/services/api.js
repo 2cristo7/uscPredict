@@ -7,7 +7,98 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true,
 });
+
+// Token storage (in-memory for security)
+let accessToken = null;
+
+export const setAccessToken = (token) => {
+  accessToken = token;
+};
+
+export const getAccessToken = () => accessToken;
+
+export const clearAccessToken = () => {
+  accessToken = null;
+};
+
+// Request interceptor - add Authorization header
+api.interceptors.request.use(
+  (config) => {
+    if (accessToken) {
+      config.headers.Authorization = `Bearer ${accessToken}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+// Response interceptor - handle 401 and token refresh
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach(prom => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+
+    if (error.response?.status === 401 && !originalRequest._retry && originalRequest.url !== '/auth/login') {
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        }).then(token => {
+          originalRequest.headers.Authorization = `Bearer ${token}`;
+          return api(originalRequest);
+        }).catch(err => Promise.reject(err));
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        const response = await api.post('/auth/refresh');
+        const authHeader = response.headers['authorization'];
+        const newToken = authHeader?.replace('Bearer ', '');
+
+        if (newToken) {
+          setAccessToken(newToken);
+          processQueue(null, newToken);
+          originalRequest.headers.Authorization = `Bearer ${newToken}`;
+          return api(originalRequest);
+        }
+      } catch (refreshError) {
+        processQueue(refreshError, null);
+        clearAccessToken();
+        window.dispatchEvent(new CustomEvent('auth:logout'));
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
+
+// Auth API
+export const authAPI = {
+  login: (email, password) => api.post('/auth/login', { email, password }),
+  register: (name, email, password) => api.post('/auth/register', { name, email, password }),
+  refresh: () => api.post('/auth/refresh'),
+  logout: () => api.post('/auth/logout'),
+};
 
 // Users
 export const userAPI = {
@@ -16,7 +107,6 @@ export const userAPI = {
   getByUsername: (username) => api.get(`/users/username/${username}`),
   create: (user) => api.post('/users', user),
   delete: (id) => api.delete(`/users/${id}`),
-  // JSON-Patch methods (RFC 6902)
   patch: (id, operations) => api.patch(`/users/${id}`, operations),
   updateProfile: (id, updates) =>
     api.patch(`/users/${id}`,
@@ -44,7 +134,6 @@ export const eventAPI = {
   create: (event) => api.post('/events', event),
   update: (id, event) => api.put(`/events/${id}`, event),
   delete: (id) => api.delete(`/events/${id}`),
-  // JSON-Patch methods (RFC 6902)
   patch: (id, operations) => api.patch(`/events/${id}`, operations),
   changeState: (id, newState) => api.patch(`/events/${id}`, [{ op: 'replace', path: '/state', value: newState }]),
 };
@@ -60,7 +149,6 @@ export const marketAPI = {
   delete: (id) => api.delete(`/markets/${id}`),
   settle: (id) => api.post(`/markets/${id}/settle`),
   matchOrders: (id) => api.post(`/markets/${id}/match`),
-  // JSON-Patch methods (RFC 6902)
   patch: (id, operations) => api.patch(`/markets/${id}`, operations),
   changeStatus: (id, newStatus) => api.patch(`/markets/${id}`, [{ op: 'replace', path: '/status', value: newStatus }]),
 };
@@ -74,9 +162,8 @@ export const orderAPI = {
   getOrderBook: (marketId) => api.get(`/orders/market/${marketId}/book`),
   create: (order) => api.post('/orders', order),
   update: (id, order) => api.put(`/orders/${id}`, order),
-  cancel: (id) => api.post(`/orders/${id}/cancel`), // Changed from PATCH to POST
+  cancel: (id) => api.post(`/orders/${id}/cancel`),
   delete: (id) => api.delete(`/orders/${id}`),
-  // JSON-Patch methods (RFC 6902) - for future use
   patch: (id, operations) => api.patch(`/orders/${id}`, operations),
 };
 
@@ -101,7 +188,6 @@ export const commentAPI = {
   getByPostId: (postId) => api.get(`/api/v1/comments/post/${postId}`),
   create: (comment) => api.post('/api/v1/comments', comment),
   delete: (commentId) => api.delete(`/api/v1/comments/${commentId}`),
-  // JSON-Patch methods (RFC 6902)
   patch: (id, operations) => api.patch(`/api/v1/comments/${id}`, operations),
   editContent: (id, newContent) =>
     api.patch(`/api/v1/comments/${id}`, [{ op: 'replace', path: '/content', value: newContent }]),

@@ -6,6 +6,7 @@ import org.springframework.data.repository.CrudRepository;
 import org.springframework.stereotype.Repository;
 import usc.uscPredict.model.User;
 
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -17,4 +18,6 @@ public interface UserRepository extends CrudRepository<@NonNull User,@NonNull UU
 
     @Query
     Set<User> findByName(@NonNull String name);
+
+    Optional<User> findByEmail(String email);
 }

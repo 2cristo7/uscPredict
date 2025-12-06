@@ -1,6 +1,7 @@
 package usc.uscPredict.model;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonView;
@@ -11,15 +12,20 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
+import java.util.List;
 import java.util.UUID;
 
 @Schema(description = "Usuario de la plataforma USC Predict")
 @Entity
 @Table(name = "users")
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class User {
+public class User implements UserDetails {
 
     // --- Interfaces para vistas JSON ---
     public interface UserSummaryView {}
@@ -53,6 +59,7 @@ public class User {
     private String pswd_hash;
 
     @Schema(description = "Rol del usuario en la plataforma", example = "USER", allowableValues = {"USER", "ADMIN"}, requiredMode = Schema.RequiredMode.REQUIRED)
+    @Setter
     @NotNull(message = "Role cannot be null")
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -106,5 +113,48 @@ public class User {
 
     public LocalDateTime getCreated_at() {
         return created_at;
+    }
+
+    // --- UserDetails implementation ---
+    @Override
+    @JsonIgnore
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return List.of(new SimpleGrantedAuthority("ROLE_" + role.name()));
+    }
+
+    @Override
+    @JsonIgnore
+    public String getPassword() {
+        return pswd_hash;
+    }
+
+    @Override
+    @JsonIgnore
+    public String getUsername() {
+        return email;
+    }
+
+    @Override
+    @JsonIgnore
+    public boolean isAccountNonExpired() {
+        return true;
+    }
+
+    @Override
+    @JsonIgnore
+    public boolean isAccountNonLocked() {
+        return true;
+    }
+
+    @Override
+    @JsonIgnore
+    public boolean isCredentialsNonExpired() {
+        return true;
+    }
+
+    @Override
+    @JsonIgnore
+    public boolean isEnabled() {
+        return true;
     }
 }
