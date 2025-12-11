@@ -13,7 +13,11 @@
       "WebSearch",
       "Bash(./gradlew bootRun)",
       "Bash(timeout 30 bash:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(./gradlew dependencies:*)",
+      "Bash(python -m json.tool:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run lint)"
     ],
     "deny": [],
     "ask": []

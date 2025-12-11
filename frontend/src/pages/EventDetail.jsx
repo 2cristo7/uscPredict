@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { eventAPI, orderAPI, positionAPI, commentAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { ensureArray } from '../utils/arrayHelpers';
 import Card from '../components/common/Card';
 import Badge from '../components/common/Badge';
 import Button from '../components/common/Button';
@@ -12,7 +13,7 @@ import { getEventColor, getInitials } from './Home';
 // ============================================================================
 // PRICE CHART PLACEHOLDER
 // ============================================================================
-const PriceChart = ({ market, yesProb }) => {
+const PriceChart = ({ yesProb }) => {
   return (
     <Card className="relative overflow-hidden">
       {/* Mock chart background */}
@@ -245,7 +246,7 @@ const OrderBook = ({ market, refreshKey }) => {
 // TRADING PANEL - Full BUY/SELL functionality
 // ============================================================================
 const TradingPanel = ({ market, event, onOrderPlaced }) => {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [shareType, setShareType] = useState('YES');
   const [orderType, setOrderType] = useState('BUY');
   const [quantity, setQuantity] = useState('');
@@ -578,7 +579,7 @@ const MarketStats = ({ event, market }) => {
 // COMMENTS SECTION
 // ============================================================================
 const CommentsSection = ({ eventId }) => {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
   const [loading, setLoading] = useState(true);
@@ -587,9 +588,10 @@ const CommentsSection = ({ eventId }) => {
   const fetchComments = useCallback(async () => {
     try {
       const response = await commentAPI.v1.getByEventId(eventId);
-      setComments(response.data);
+      setComments(ensureArray(response.data));
     } catch (err) {
       console.error('Failed to fetch comments:', err);
+      setComments([]);
     } finally {
       setLoading(false);
     }

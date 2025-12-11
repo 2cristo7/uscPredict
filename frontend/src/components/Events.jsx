@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { eventAPI, commentAPI, userAPI } from '../services/api';
+import { ensureArray } from '../utils/arrayHelpers';
 
 export default function Events() {
   const [events, setEvents] = useState([]);
@@ -24,10 +25,11 @@ export default function Events() {
     try {
       setLoading(true);
       const response = await eventAPI.v1.getAll();
-      setEvents(response.data);
+      setEvents(ensureArray(response.data));
       setError(null);
     } catch (err) {
       setError(err.message);
+      setEvents([]);
     } finally {
       setLoading(false);
     }
@@ -36,9 +38,10 @@ export default function Events() {
   const loadUsers = async () => {
     try {
       const response = await userAPI.v1.getAll();
-      setUsers(response.data);
+      setUsers(ensureArray(response.data));
     } catch (err) {
       console.error('Error loading users:', err);
+      setUsers([]);
     }
   };
 

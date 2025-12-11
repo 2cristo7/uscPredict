@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { walletAPI, orderAPI, positionAPI, transactionAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import Card from '../components/common/Card';
@@ -12,6 +12,7 @@ import Spinner from '../components/common/Spinner';
 
 // Wallet Card Component
 const WalletCard = ({ wallet, onUpdate }) => {
+  const { user } = useAuth();
   const [showDeposit, setShowDeposit] = useState(false);
   const [showWithdraw, setShowWithdraw] = useState(false);
   const [amount, setAmount] = useState('');
@@ -313,7 +314,9 @@ const Profile = () => {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
+    if (!user?.uuid) return;
+
     try {
       const [walletRes, ordersRes, positionsRes, transactionsRes] = await Promise.all([
         walletAPI.v1.getByUserId(user.uuid),
@@ -330,13 +333,11 @@ const Profile = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.uuid]);
 
   useEffect(() => {
-    if (user?.uuid) {
-      fetchData();
-    }
-  }, [user?.uuid]);
+    fetchData();
+  }, [fetchData]);
 
   const handleCancelOrder = async (orderUuid) => {
     try {

@@ -35,13 +35,20 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
+                        // Authentication endpoints - permitAll
+                        .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/auth/**").permitAll()
+                        // Swagger/OpenAPI
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                        // Actuator health check
+                        .requestMatchers("/actuator/health").permitAll()
                         // Public read-only endpoints
-                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/events/**").permitAll()
-                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/markets/**").permitAll()
-                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/orders/market/**").permitAll()
-                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/comments/**").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/events/**").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/markets/**").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/orders/market/**").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/comments/**").permitAll()
+                        // Home endpoint
+                        .requestMatchers("/api/v1", "/api/v1/").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterAfter(jwtFilter, BasicAuthenticationFilter.class)

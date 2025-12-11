@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { eventAPI } from '../../services/api';
+import { ensureArray } from '../../utils/arrayHelpers';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import Input, { Textarea, Select } from '../../components/common/Input';
@@ -71,9 +72,10 @@ const Events = () => {
   const fetchEvents = async () => {
     try {
       const response = await eventAPI.v1.getAll();
-      setEvents(response.data);
+      setEvents(ensureArray(response.data));
     } catch (err) {
       console.error('Failed to fetch events:', err);
+      setEvents([]);
     } finally {
       setLoading(false);
     }

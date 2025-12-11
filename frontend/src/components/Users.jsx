@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { userAPI, walletAPI } from '../services/api';
+import { ensureArray } from '../utils/arrayHelpers';
 
 export default function Users() {
   const [users, setUsers] = useState([]);
@@ -26,10 +27,11 @@ export default function Users() {
     try {
       setLoading(true);
       const response = await userAPI.v1.getAll();
-      setUsers(response.data);
+      setUsers(ensureArray(response.data));
       setError(null);
     } catch (err) {
       setError(err.message);
+      setUsers([]);
     } finally {
       setLoading(false);
     }

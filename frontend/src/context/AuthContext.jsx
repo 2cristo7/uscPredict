@@ -30,7 +30,7 @@ export function AuthProvider({ children }) {
   const logout = useCallback(async () => {
     try {
       await authAPI.v1.logout();
-    } catch (e) {
+    } catch {
       // Continue with logout even if server call fails
     }
     clearAccessToken();
@@ -90,6 +90,7 @@ export function AuthProvider({ children }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
   const context = useContext(AuthContext);
   if (!context) {

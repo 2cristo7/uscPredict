@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { marketAPI, eventAPI } from '../services/api';
 
 export default function Markets() {
@@ -21,10 +21,6 @@ export default function Markets() {
     status: 'ACTIVE'
   });
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
   const extractErrorMessage = (err) => {
     if (err.response?.data) {
       if (typeof err.response.data === 'string') {
@@ -38,7 +34,7 @@ export default function Markets() {
     return err.message || 'An error occurred';
   };
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       const [marketsRes, eventsRes] = await Promise.all([
@@ -53,7 +49,11 @@ export default function Markets() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const handleCreateEvent = async (e) => {
     e.preventDefault();

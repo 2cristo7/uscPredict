@@ -17,8 +17,8 @@ const getInitials = (title) => {
 
   // Remove special characters at start/end and split into words
   const cleanTitle = title
-    .replace(/^[¿¡"'<>«»\[\](){}.,;:!?@#$%^&*+=~`|\\/-]+/, '') // Remove leading special chars
-    .replace(/[¿¡"'<>«»\[\](){}.,;:!?@#$%^&*+=~`|\\/-]+$/, ''); // Remove trailing special chars
+    .replace(/^[¿¡"'<>«»[\](){}.,;:!?@#$%^&*+=~`|\\/-]+/, '') // Remove leading special chars
+    .replace(/[¿¡"'<>«»[\](){}.,;:!?@#$%^&*+=~`|\\/-]+$/, ''); // Remove trailing special chars
 
   // Split into words, filter stopwords and numbers-only words
   const words = cleanTitle
@@ -178,6 +178,7 @@ const MarketCard = ({ event }) => {
 };
 
 // Export utilities for use in EventDetail
+// eslint-disable-next-line react-refresh/only-export-components
 export { EventPlaceholder, getEventColor, getInitials };
 
 const Home = () => {
@@ -190,10 +191,13 @@ const Home = () => {
     const fetchEvents = async () => {
       try {
         const response = await eventAPI.v1.getAll();
-        setEvents(response.data);
+        // Ensure data is an array
+        const eventsData = Array.isArray(response.data) ? response.data : [];
+        setEvents(eventsData);
       } catch (err) {
         setError('Failed to load events');
         console.error(err);
+        setEvents([]); // Set empty array on error
       } finally {
         setLoading(false);
       }

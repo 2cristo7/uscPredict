@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { userAPI, walletAPI } from '../../services/api';
+import { ensureArray } from '../../utils/arrayHelpers';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import { Select } from '../../components/common/Input';
@@ -121,9 +122,10 @@ const Users = () => {
   const fetchUsers = async () => {
     try {
       const response = await userAPI.v1.getAll();
-      setUsers(response.data);
+      setUsers(ensureArray(response.data));
     } catch (err) {
       console.error('Failed to fetch users:', err);
+      setUsers([]);
     } finally {
       setLoading(false);
     }

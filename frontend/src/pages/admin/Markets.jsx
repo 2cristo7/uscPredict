@@ -52,7 +52,7 @@ const MarketForm = ({ market, events, onSave, onCancel, loading }) => {
   );
 };
 
-const SettleModal = ({ market, onSettle, onCancel, loading }) => {
+const SettleModal = ({ onSettle, onCancel, loading }) => {
   const [winner, setWinner] = useState('YES');
 
   return (
@@ -174,7 +174,7 @@ const Markets = () => {
     setShowSettleModal(true);
   };
 
-  const handleSettle = async (winner) => {
+  const handleSettle = async () => {
     setSaving(true);
     try {
       await marketAPI.v1.settle(settlingMarket.uuid);
