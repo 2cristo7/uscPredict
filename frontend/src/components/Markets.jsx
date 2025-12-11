@@ -42,8 +42,8 @@ export default function Markets() {
     try {
       setLoading(true);
       const [marketsRes, eventsRes] = await Promise.all([
-        marketAPI.getAll(),
-        eventAPI.getAll()
+        marketAPI.v1.getAll(),
+        eventAPI.v1.getAll()
       ]);
       setMarkets(marketsRes.data);
       setEvents(eventsRes.data);
@@ -59,7 +59,7 @@ export default function Markets() {
     e.preventDefault();
     try {
       setError(null);
-      await eventAPI.create(newEvent);
+      await eventAPI.v1.create(newEvent);
       setNewEvent({ title: '', description: '', state: 'OPEN' });
       setShowCreateEventForm(false);
       await loadData();
@@ -72,7 +72,7 @@ export default function Markets() {
     e.preventDefault();
     try {
       setError(null);
-      await marketAPI.create(newMarket);
+      await marketAPI.v1.create(newMarket);
       setNewMarket({ eventId: '', outcome: '', status: 'ACTIVE' });
       setShowCreateMarketForm(false);
       await loadData();
@@ -84,7 +84,7 @@ export default function Markets() {
   const handleMatchOrders = async (marketId) => {
     try {
       setError(null);
-      const response = await marketAPI.matchOrders(marketId);
+      const response = await marketAPI.v1.matchOrders(marketId);
       alert(`Matched ${response.data} orders!`);
       await loadData();
     } catch (err) {
@@ -96,7 +96,7 @@ export default function Markets() {
     if (window.confirm('Are you sure you want to settle this market?')) {
       try {
         setError(null);
-        await marketAPI.settle(marketId);
+        await marketAPI.v1.settle(marketId);
         alert('Market settled successfully!');
         await loadData();
       } catch (err) {
@@ -108,7 +108,7 @@ export default function Markets() {
   const handleChangeMarketStatus = async (marketId, newStatus) => {
     try {
       setError(null);
-      await marketAPI.changeStatus(marketId, newStatus);
+      await marketAPI.v1.changeStatus(marketId, newStatus);
       await loadData();
     } catch (err) {
       setError(extractErrorMessage(err));

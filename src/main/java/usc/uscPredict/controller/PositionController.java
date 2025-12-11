@@ -17,10 +17,10 @@ import java.util.UUID;
 /**
  * REST Controller for Position endpoints.
  * Handles HTTP requests for position tracking and management.
- * Base path: /positions
+ * Base path: /api/v1/positions
  */
 @RestController
-@RequestMapping("/positions")
+@RequestMapping("/api/v1/positions")
 @Validated
 public class PositionController {
 

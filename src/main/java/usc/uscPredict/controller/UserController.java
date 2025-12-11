@@ -29,7 +29,7 @@ import java.util.UUID;
 
 @Tag(name = "Users", description = "API de gestión de usuarios")
 @RestController
-@RequestMapping("users")
+@RequestMapping("/api/v1/users")
 @Validated
 class UserController {
     UserService userService;

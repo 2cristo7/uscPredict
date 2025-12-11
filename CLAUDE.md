@@ -110,12 +110,45 @@ Some comments and error messages are in Spanish (e.g., "El contenido no puede es
 
 ## API Structure
 
-Controllers are mapped under their plural entity names:
-- `/users` - UserController
-- `/comments` - CommentController (expected)
-- Events controller not yet implemented
+### API Versioning
 
-Health check endpoint: `GET /users/health`
+This project uses **URI versioning** for all REST endpoints.
+
+#### Backend Convention
+All controllers use the prefix `/api/v1/`:
+- `/api/v1` - HomeController (API info)
+- `/api/v1/users` - User management
+- `/api/v1/auth` - Authentication (login, register, refresh, logout)
+- `/api/v1/events` - Event management
+- `/api/v1/markets` - Market endpoints
+- `/api/v1/orders` - Order management
+- `/api/v1/positions` - Position tracking
+- `/api/v1/transactions` - Transaction history
+- `/api/v1/wallets` - Wallet operations
+- `/api/v1/comments` - Comments
+
+Health check endpoint: `GET /api/v1/users/health`
+
+#### Frontend API Structure
+All API calls use versioned objects in `services/api.js`:
+
+```javascript
+import { userAPI, eventAPI, authAPI } from './services/api';
+
+// All methods are under .v1 namespace
+userAPI.v1.getAll();
+eventAPI.v1.getById(id);
+authAPI.v1.login(email, password);
+```
+
+The frontend uses a relative baseURL (`'/api'`) that resolves to the backend running on `localhost:8080` during development.
+
+#### Future Versioning
+When introducing breaking changes:
+1. Create new endpoints under `/api/v2/...` in backend
+2. Add `v2` namespace to frontend API objects
+3. Maintain both versions during migration period
+4. Deprecate v1 with proper sunset headers
 
 ## Testing
 

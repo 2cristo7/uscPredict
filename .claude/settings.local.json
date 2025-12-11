@@ -10,7 +10,10 @@
       "Bash(grep:*)",
       "Bash(./gradlew test:*)",
       "Bash(cat:*)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(./gradlew bootRun)",
+      "Bash(timeout 30 bash:*)",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []

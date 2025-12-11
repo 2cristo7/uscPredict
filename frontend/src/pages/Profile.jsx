@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import api from '../services/api';
+import { walletAPI, orderAPI, positionAPI, transactionAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
@@ -22,9 +22,7 @@ const WalletCard = ({ wallet, onUpdate }) => {
     setError('');
     setLoading(true);
     try {
-      await api.post(`/wallets/${wallet.uuid}/deposit`, null, {
-        params: { amount: parseFloat(amount) }
-      });
+      await walletAPI.v1.deposit(user.uuid, parseFloat(amount));
       setAmount('');
       setShowDeposit(false);
       onUpdate?.();
@@ -39,9 +37,7 @@ const WalletCard = ({ wallet, onUpdate }) => {
     setError('');
     setLoading(true);
     try {
-      await api.post(`/wallets/${wallet.uuid}/withdraw`, null, {
-        params: { amount: parseFloat(amount) }
-      });
+      await walletAPI.v1.withdraw(user.uuid, parseFloat(amount));
       setAmount('');
       setShowWithdraw(false);
       onUpdate?.();
@@ -320,10 +316,10 @@ const Profile = () => {
   const fetchData = async () => {
     try {
       const [walletRes, ordersRes, positionsRes, transactionsRes] = await Promise.all([
-        api.get(`/wallets/user/${user.uuid}`),
-        api.get(`/orders/user/${user.uuid}`),
-        api.get(`/positions/user/${user.uuid}`),
-        api.get(`/transactions/user/${user.uuid}`),
+        walletAPI.v1.getByUserId(user.uuid),
+        orderAPI.v1.getByUserId(user.uuid),
+        positionAPI.v1.getByUserId(user.uuid),
+        transactionAPI.v1.getByUserId(user.uuid),
       ]);
       setWallet(walletRes.data);
       setOrders(ordersRes.data);
@@ -344,7 +340,7 @@ const Profile = () => {
 
   const handleCancelOrder = async (orderUuid) => {
     try {
-      await api.post(`/orders/${orderUuid}/cancel`);
+      await orderAPI.v1.cancel(orderUuid);
       fetchData();
     } catch (err) {
       console.error('Failed to cancel order:', err);

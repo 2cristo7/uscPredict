@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import api from '../../services/api';
+import { eventAPI } from '../../services/api';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import Input, { Textarea, Select } from '../../components/common/Input';
@@ -70,7 +70,7 @@ const Events = () => {
 
   const fetchEvents = async () => {
     try {
-      const response = await api.get('/events');
+      const response = await eventAPI.v1.getAll();
       setEvents(response.data);
     } catch (err) {
       console.error('Failed to fetch events:', err);
@@ -100,13 +100,13 @@ const Events = () => {
     setError('');
     try {
       if (editingEvent) {
-        await api.patch(`/events/${editingEvent.uuid}`, [
+        await eventAPI.v1.patch(editingEvent.uuid, [
           { op: 'replace', path: '/title', value: formData.title },
           { op: 'replace', path: '/description', value: formData.description },
           { op: 'replace', path: '/status', value: formData.status },
         ]);
       } else {
-        await api.post('/events', formData);
+        await eventAPI.v1.create(formData);
       }
       setShowModal(false);
       fetchEvents();
@@ -120,7 +120,7 @@ const Events = () => {
   const handleDelete = async (uuid) => {
     if (!confirm('Are you sure you want to delete this event?')) return;
     try {
-      await api.delete(`/events/${uuid}`);
+      await eventAPI.v1.delete(uuid);
       fetchEvents();
     } catch (err) {
       console.error('Failed to delete event:', err);

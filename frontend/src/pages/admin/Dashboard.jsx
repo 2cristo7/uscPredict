@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import api from '../../services/api';
+import { userAPI, eventAPI, marketAPI, orderAPI } from '../../services/api';
 import Card from '../../components/common/Card';
 import Spinner from '../../components/common/Spinner';
 
@@ -42,10 +42,10 @@ const Dashboard = () => {
     const fetchStats = async () => {
       try {
         const [usersRes, eventsRes, marketsRes, ordersRes] = await Promise.all([
-          api.get('/users'),
-          api.get('/events'),
-          api.get('/markets'),
-          api.get('/orders'),
+          userAPI.v1.getAll(),
+          eventAPI.v1.getAll(),
+          marketAPI.v1.getAll(),
+          orderAPI.v1.getAll(),
         ]);
         setStats({
           users: usersRes.data?.length || 0,

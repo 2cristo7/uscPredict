@@ -23,7 +23,7 @@ export default function Events() {
   const loadEvents = async () => {
     try {
       setLoading(true);
-      const response = await eventAPI.getAll();
+      const response = await eventAPI.v1.getAll();
       setEvents(response.data);
       setError(null);
     } catch (err) {
@@ -35,7 +35,7 @@ export default function Events() {
 
   const loadUsers = async () => {
     try {
-      const response = await userAPI.getAll();
+      const response = await userAPI.v1.getAll();
       setUsers(response.data);
     } catch (err) {
       console.error('Error loading users:', err);
@@ -93,7 +93,7 @@ export default function Events() {
   const handleChangeEventState = async (eventId, newState) => {
     try {
       setError(null);
-      await eventAPI.changeState(eventId, newState);
+      await eventAPI.v1.changeState(eventId, newState);
       await loadEvents();
     } catch (err) {
       setError(err.message);

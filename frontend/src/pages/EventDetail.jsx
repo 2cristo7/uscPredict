@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import api from '../services/api';
+import { eventAPI, orderAPI, positionAPI, commentAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import Card from '../components/common/Card';
 import Badge from '../components/common/Badge';
@@ -94,7 +94,7 @@ const OrderBook = ({ market, refreshKey }) => {
         return;
       }
       try {
-        const response = await api.get(`/orders/market/${market.uuid}`);
+        const response = await orderAPI.v1.getByMarketId(market.uuid);
         const allOrders = response.data;
 
         // Filter pending orders and aggregate by price level
@@ -272,7 +272,7 @@ const TradingPanel = ({ market, event, onOrderPlaced }) => {
     setLoading(true);
 
     try {
-      await api.post('/orders', {
+      await orderAPI.v1.create({
         marketUuid: market.uuid,
         side: orderType,
         shareType: shareType,
@@ -471,7 +471,7 @@ const UserPosition = ({ market, user, refreshKey }) => {
         return;
       }
       try {
-        const response = await api.get(`/positions/user/${user.uuid}`);
+        const response = await positionAPI.v1.getByUserId(user.uuid);
         const positions = response.data;
         const marketPosition = positions.find(p => p.market?.uuid === market.uuid);
         setPosition(marketPosition);
@@ -586,7 +586,7 @@ const CommentsSection = ({ eventId }) => {
 
   const fetchComments = useCallback(async () => {
     try {
-      const response = await api.get(`/comments/event/${eventId}`);
+      const response = await commentAPI.v1.getByEventId(eventId);
       setComments(response.data);
     } catch (err) {
       console.error('Failed to fetch comments:', err);
@@ -605,7 +605,7 @@ const CommentsSection = ({ eventId }) => {
 
     setSubmitting(true);
     try {
-      await api.post('/comments', {
+      await commentAPI.v1.create({
         eventUuid: eventId,
         content: newComment.trim(),
       });
@@ -715,7 +715,7 @@ const EventDetail = () => {
   useEffect(() => {
     const fetchEvent = async () => {
       try {
-        const response = await api.get(`/events/${id}`);
+        const response = await eventAPI.v1.getById(id);
         setEvent(response.data);
       } catch (err) {
         setError('Failed to load event');

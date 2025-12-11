@@ -18,13 +18,13 @@ import java.util.UUID;
 /**
  * REST Controller for Transaction endpoints.
  * Handles HTTP requests for transaction history and audit logs.
- * Base path: /transactions
+ * Base path: /api/v1/transactions
  *
  * Note: Most transactions are created automatically by other services.
  * This controller is mainly for reading transaction history.
  */
 @RestController
-@RequestMapping("/transactions")
+@RequestMapping("/api/v1/transactions")
 @Validated
 public class TransactionController {
 

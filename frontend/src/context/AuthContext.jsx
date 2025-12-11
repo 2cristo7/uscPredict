@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import api, { setAccessToken, clearAccessToken } from '../services/api';
+import { setAccessToken, clearAccessToken, authAPI } from '../services/api';
 
 const AuthContext = createContext(null);
 
@@ -8,7 +8,7 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   const login = useCallback(async (email, password) => {
-    const response = await api.post('/auth/login', { email, password });
+    const response = await authAPI.v1.login(email, password);
 
     const authHeader = response.headers['authorization'];
     const jwt = authHeader?.replace('Bearer ', '');
@@ -22,14 +22,14 @@ export function AuthProvider({ children }) {
   }, []);
 
   const register = useCallback(async (name, email, password) => {
-    await api.post('/auth/register', { name, email, password });
+    await authAPI.v1.register(name, email, password);
     // Auto-login after successful registration
     return await login(email, password);
   }, [login]);
 
   const logout = useCallback(async () => {
     try {
-      await api.post('/auth/logout');
+      await authAPI.v1.logout();
     } catch (e) {
       // Continue with logout even if server call fails
     }
@@ -39,7 +39,7 @@ export function AuthProvider({ children }) {
 
   const refreshToken = useCallback(async () => {
     try {
-      const response = await api.post('/auth/refresh');
+      const response = await authAPI.v1.refresh();
 
       const authHeader = response.headers['authorization'];
       const jwt = authHeader?.replace('Bearer ', '');

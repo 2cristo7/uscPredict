@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import api from '../services/api';
+import { eventAPI } from '../services/api';
 import Badge from '../components/common/Badge';
 import Spinner from '../components/common/Spinner';
 
@@ -189,7 +189,7 @@ const Home = () => {
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        const response = await api.get('/events');
+        const response = await eventAPI.v1.getAll();
         setEvents(response.data);
       } catch (err) {
         setError('Failed to load events');

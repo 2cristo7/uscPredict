@@ -23,7 +23,7 @@ import usc.uscPredict.service.AuthenticationService;
 import java.time.Duration;
 
 @RestController
-@RequestMapping("/auth")
+@RequestMapping("/api/v1/auth")
 public class AuthenticationController {
 
     private static final String REFRESH_TOKEN_COOKIE_NAME = "RefreshToken"; // TODO: Use __Secure-RefreshToken in production
@@ -54,7 +54,7 @@ public class AuthenticationController {
                 .secure(false) // TODO: Set to true in production with HTTPS
                 .httpOnly(true)
                 .sameSite(Cookie.SameSite.LAX.toString()) // LAX allows cross-site in dev
-                .path("/auth/refresh")
+                .path("/api/v1/auth/refresh")
                 .maxAge(Duration.ofDays(7))
                 .build();
 
@@ -109,7 +109,7 @@ public class AuthenticationController {
                     .secure(false) // TODO: Set to true in production with HTTPS
                     .httpOnly(true)
                     .sameSite(Cookie.SameSite.LAX.toString()) // LAX allows cross-site in dev
-                    .path("/auth/refresh")
+                    .path("/api/v1/auth/refresh")
                     .maxAge(Duration.ofDays(7))
                     .build();
 
@@ -136,7 +136,7 @@ public class AuthenticationController {
 
         ResponseCookie cookie = ResponseCookie.from(REFRESH_TOKEN_COOKIE_NAME, "")
                 .maxAge(0)
-                .path("/auth/refresh")
+                .path("/api/v1/auth/refresh")
                 .build();
 
         return ResponseEntity.noContent()

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import api from '../../services/api';
+import { userAPI, walletAPI } from '../../services/api';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import { Select } from '../../components/common/Input';
@@ -16,7 +16,7 @@ const UserDetailModal = ({ user, onClose, onUpdate }) => {
   useEffect(() => {
     const fetchWallet = async () => {
       try {
-        const response = await api.get(`/wallets/user/${user.uuid}`);
+        const response = await walletAPI.v1.getByUserId(user.uuid);
         setWallet(response.data);
       } catch (err) {
         console.error('Failed to fetch wallet:', err);
@@ -30,7 +30,7 @@ const UserDetailModal = ({ user, onClose, onUpdate }) => {
   const handleUpdateRole = async () => {
     setSaving(true);
     try {
-      await api.patch(`/users/${user.uuid}`, [
+      await userAPI.v1.patch(user.uuid, [
         { op: 'replace', path: '/role', value: role },
       ]);
       onUpdate?.();
@@ -120,7 +120,7 @@ const Users = () => {
 
   const fetchUsers = async () => {
     try {
-      const response = await api.get('/users');
+      const response = await userAPI.v1.getAll();
       setUsers(response.data);
     } catch (err) {
       console.error('Failed to fetch users:', err);

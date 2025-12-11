@@ -18,8 +18,8 @@ export default function Wallets() {
     try {
       setLoading(true);
       const [walletsRes, usersRes] = await Promise.all([
-        walletAPI.getAll(),
-        userAPI.getAll()
+        walletAPI.v1.getAll(),
+        userAPI.v1.getAll()
       ]);
       setWallets(walletsRes.data);
       setUsers(usersRes.data);
@@ -38,9 +38,9 @@ export default function Wallets() {
     try {
       setError(null);
       if (operation === 'deposit') {
-        await walletAPI.deposit(selectedUserId, parseFloat(amount));
+        await walletAPI.v1.deposit(selectedUserId, parseFloat(amount));
       } else {
-        await walletAPI.withdraw(selectedUserId, parseFloat(amount));
+        await walletAPI.v1.withdraw(selectedUserId, parseFloat(amount));
       }
       setAmount('');
       setSelectedUserId('');

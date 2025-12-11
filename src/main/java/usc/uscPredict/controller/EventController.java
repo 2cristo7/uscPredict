@@ -22,10 +22,10 @@ import java.util.UUID;
 /**
  * REST Controller for Event endpoints.
  * Handles HTTP requests for event management.
- * Base path: /events
+ * Base path: /api/v1/events
  */
 @RestController
-@RequestMapping("/events")
+@RequestMapping("/api/v1/events")
 @Validated
 public class EventController {
 

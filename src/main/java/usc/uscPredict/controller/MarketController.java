@@ -22,10 +22,10 @@ import java.util.UUID;
 /**
  * REST Controller for Market endpoints.
  * Handles HTTP requests for market management.
- * Base path: /markets
+ * Base path: /api/v1/markets
  */
 @RestController
-@RequestMapping("/markets")
+@RequestMapping("/api/v1/markets")
 @Validated
 public class MarketController {
 

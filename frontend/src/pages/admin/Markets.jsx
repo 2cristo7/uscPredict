@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import api from '../../services/api';
+import { marketAPI, eventAPI } from '../../services/api';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import Input, { Select } from '../../components/common/Input';
@@ -112,8 +112,8 @@ const Markets = () => {
   const fetchData = async () => {
     try {
       const [marketsRes, eventsRes] = await Promise.all([
-        api.get('/markets'),
-        api.get('/events'),
+        marketAPI.v1.getAll(),
+        eventAPI.v1.getAll(),
       ]);
       setMarkets(marketsRes.data);
       setEvents(eventsRes.data);
@@ -145,11 +145,11 @@ const Markets = () => {
     setError('');
     try {
       if (editingMarket) {
-        await api.patch(`/markets/${editingMarket.uuid}`, [
+        await marketAPI.v1.patch(editingMarket.uuid, [
           { op: 'replace', path: '/status', value: formData.status },
         ]);
       } else {
-        await api.post('/markets', { eventUuid: formData.eventUuid });
+        await marketAPI.v1.create({ eventUuid: formData.eventUuid });
       }
       setShowModal(false);
       fetchData();
@@ -162,7 +162,7 @@ const Markets = () => {
 
   const handleMatchOrders = async (marketUuid) => {
     try {
-      await api.post(`/markets/${marketUuid}/match`);
+      await marketAPI.v1.matchOrders(marketUuid);
       fetchData();
     } catch (err) {
       console.error('Failed to match orders:', err);
@@ -177,9 +177,7 @@ const Markets = () => {
   const handleSettle = async (winner) => {
     setSaving(true);
     try {
-      await api.post(`/markets/${settlingMarket.uuid}/settle`, null, {
-        params: { winner }
-      });
+      await marketAPI.v1.settle(settlingMarket.uuid);
       setShowSettleModal(false);
       fetchData();
     } catch (err) {

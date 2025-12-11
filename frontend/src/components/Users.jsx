@@ -25,7 +25,7 @@ export default function Users() {
   const loadUsers = async () => {
     try {
       setLoading(true);
-      const response = await userAPI.getAll();
+      const response = await userAPI.v1.getAll();
       setUsers(response.data);
       setError(null);
     } catch (err) {
@@ -38,7 +38,7 @@ export default function Users() {
   const handleCreateUser = async (e) => {
     e.preventDefault();
     try {
-      await userAPI.create(newUser);
+      await userAPI.v1.create(newUser);
       setNewUser({ name: '', email: '', pswd_hash: '', role: 'USER' });
       setShowCreateForm(false);
       loadUsers();
@@ -50,7 +50,7 @@ export default function Users() {
   const handleDeleteUser = async (id) => {
     if (window.confirm('Are you sure you want to delete this user?')) {
       try {
-        await userAPI.delete(id);
+        await userAPI.v1.delete(id);
         loadUsers();
       } catch (err) {
         setError(err.message);
@@ -60,7 +60,7 @@ export default function Users() {
 
   const handleCreateWallet = async (userId) => {
     try {
-      await walletAPI.create({ userId, balance: 1000, lockedBalance: 0 });
+      await walletAPI.v1.create({ userId, balance: 1000, lockedBalance: 0 });
       alert('Wallet created successfully with $1000 initial balance!');
     } catch (err) {
       setError(err.message);
@@ -83,7 +83,7 @@ export default function Users() {
 
     try {
       setError(null);
-      await userAPI.updateProfile(editingUser, editForm);
+      await userAPI.v1.updateProfile(editingUser, editForm);
       setEditingUser(null);
       setEditForm({ name: '', email: '' });
       await loadUsers();

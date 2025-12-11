@@ -22,10 +22,10 @@ import java.util.UUID;
 /**
  * REST Controller for Order endpoints.
  * Handles HTTP requests for order management and trading.
- * Base path: /orders
+ * Base path: /api/v1/orders
  */
 @RestController
-@RequestMapping("/orders")
+@RequestMapping("/api/v1/orders")
 @Validated
 public class OrderController {
 

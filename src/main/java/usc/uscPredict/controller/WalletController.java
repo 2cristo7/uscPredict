@@ -20,10 +20,10 @@ import java.util.UUID;
 /**
  * REST Controller for Wallet endpoints.
  * Handles HTTP requests for wallet management and fund operations.
- * Base path: /wallets
+ * Base path: /api/v1/wallets
  */
 @RestController
-@RequestMapping("/wallets")
+@RequestMapping("/api/v1/wallets")
 @Validated
 public class WalletController {
 

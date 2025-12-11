@@ -32,9 +32,9 @@ export default function Orders() {
     try {
       setLoading(true);
       const [ordersRes, usersRes, marketsRes, positionsRes] = await Promise.all([
-        orderAPI.getAll(),
-        userAPI.getAll(),
-        marketAPI.getAll(),
+        orderAPI.v1.getAll(),
+        userAPI.v1.getAll(),
+        marketAPI.v1.getAll(),
         positionAPI.getAll()
       ]);
       setOrders(ordersRes.data);
@@ -72,7 +72,7 @@ export default function Orders() {
         quantity: parseInt(newOrder.quantity),
         filledQuantity: 0
       };
-      await orderAPI.create(orderData);
+      await orderAPI.v1.create(orderData);
       setNewOrder({ userId: '', marketId: '', side: 'BUY', price: '', quantity: '' });
       setShowCreateForm(false);
       await loadData();
@@ -98,7 +98,7 @@ export default function Orders() {
     if (window.confirm('Are you sure you want to cancel this order?')) {
       try {
         setError(null);
-        await orderAPI.cancel(orderId);
+        await orderAPI.v1.cancel(orderId);
         await loadData();
       } catch (err) {
         // Handle error message properly
@@ -143,7 +143,7 @@ export default function Orders() {
 
     try {
       setError(null);
-      await orderAPI.patch(editingOrder, [
+      await orderAPI.v1.patch(editingOrder, [
         { op: 'replace', path: '/price', value: price },
         { op: 'replace', path: '/quantity', value: quantity }
       ]);
