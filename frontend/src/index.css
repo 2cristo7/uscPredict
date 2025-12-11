@@ -1,10 +1,130 @@
 @import "tailwindcss";
 
+:root {
+  /* Background colors */
+  --bg-primary: #0d0d0d;
+  --bg-secondary: #141414;
+  --bg-card: #1a1a1a;
+  --bg-card-hover: #1f1f1f;
+  --bg-input: #0a0a0a;
+
+  /* Border colors */
+  --border-primary: #2a2a2a;
+  --border-secondary: #333333;
+
+  /* Text colors */
+  --text-primary: #ffffff;
+  --text-secondary: #a0a0a0;
+  --text-muted: #666666;
+
+  /* Accent colors */
+  --yes-green: #22c55e;
+  --yes-green-hover: #16a34a;
+  --yes-green-bg: rgba(34, 197, 94, 0.1);
+  --no-red: #ef4444;
+  --no-red-hover: #dc2626;
+  --no-red-bg: rgba(239, 68, 68, 0.1);
+  --accent-blue: #3b82f6;
+  --accent-blue-hover: #2563eb;
+
+  /* Status colors */
+  --status-open: #22c55e;
+  --status-closed: #f59e0b;
+  --status-settled: #3b82f6;
+  --status-pending: #f59e0b;
+  --status-filled: #22c55e;
+  --status-cancelled: #6b7280;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background-color: var(--bg-primary);
+}
+
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto',
+    'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* Custom scrollbar for dark theme */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-secondary);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #444444;
+}
+
+/* Custom utility classes */
+@layer utilities {
+  .bg-primary { background-color: var(--bg-primary); }
+  .bg-secondary { background-color: var(--bg-secondary); }
+  .bg-card { background-color: var(--bg-card); }
+  .bg-card-hover { background-color: var(--bg-card-hover); }
+  .bg-input { background-color: var(--bg-input); }
+
+  .border-primary { border-color: var(--border-primary); }
+  .border-secondary { border-color: var(--border-secondary); }
+
+  .text-primary { color: var(--text-primary); }
+  .text-secondary { color: var(--text-secondary); }
+  .text-muted { color: var(--text-muted); }
+
+  .text-yes { color: var(--yes-green); }
+  .text-no { color: var(--no-red); }
+  .bg-yes { background-color: var(--yes-green); }
+  .bg-no { background-color: var(--no-red); }
+  .bg-yes-light { background-color: var(--yes-green-bg); }
+  .bg-no-light { background-color: var(--no-red-bg); }
+
+  .transition-default {
+    transition: all 150ms ease-in-out;
+  }
+}
+
+/* Input focus styles */
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  border-color: var(--accent-blue) !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+/* Link styles */
+a {
+  color: var(--accent-blue);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--accent-blue-hover);
+}
+
+/* Selection */
+::selection {
+  background-color: var(--accent-blue);
+  color: white;
 }

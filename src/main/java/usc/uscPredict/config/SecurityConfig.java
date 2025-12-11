@@ -37,6 +37,11 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                        // Public read-only endpoints
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/events/**").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/markets/**").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/orders/market/**").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/comments/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterAfter(jwtFilter, BasicAuthenticationFilter.class)
@@ -49,7 +54,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:5173", "http://localhost:5174", "http://localhost:3000"));
+        configuration.setAllowedOrigins(List.of("http://localhost:5173", "http://localhost:5174", "http://localhost:5175", "http://localhost:3000"));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setExposedHeaders(List.of("Authorization", "Set-Cookie"));

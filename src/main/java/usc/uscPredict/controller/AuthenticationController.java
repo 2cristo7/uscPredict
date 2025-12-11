@@ -26,7 +26,7 @@ import java.time.Duration;
 @RequestMapping("/auth")
 public class AuthenticationController {
 
-    private static final String REFRESH_TOKEN_COOKIE_NAME = "__Secure-RefreshToken";
+    private static final String REFRESH_TOKEN_COOKIE_NAME = "RefreshToken"; // TODO: Use __Secure-RefreshToken in production
 
     private final AuthenticationService authenticationService;
     private final UserRepository userRepository;
@@ -51,9 +51,9 @@ public class AuthenticationController {
         User user = (User) auth.getPrincipal();
 
         ResponseCookie cookie = ResponseCookie.from(REFRESH_TOKEN_COOKIE_NAME, refreshToken)
-                .secure(true)
+                .secure(false) // TODO: Set to true in production with HTTPS
                 .httpOnly(true)
-                .sameSite(Cookie.SameSite.STRICT.toString())
+                .sameSite(Cookie.SameSite.LAX.toString()) // LAX allows cross-site in dev
                 .path("/auth/refresh")
                 .maxAge(Duration.ofDays(7))
                 .build();
@@ -106,9 +106,9 @@ public class AuthenticationController {
             User user = (User) auth.getPrincipal();
 
             ResponseCookie cookie = ResponseCookie.from(REFRESH_TOKEN_COOKIE_NAME, newRefreshToken)
-                    .secure(true)
+                    .secure(false) // TODO: Set to true in production with HTTPS
                     .httpOnly(true)
-                    .sameSite(Cookie.SameSite.STRICT.toString())
+                    .sameSite(Cookie.SameSite.LAX.toString()) // LAX allows cross-site in dev
                     .path("/auth/refresh")
                     .maxAge(Duration.ofDays(7))
                     .build();
