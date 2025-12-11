@@ -20,7 +20,6 @@ import java.util.UUID;
  * Service layer for Wallet entity.
  * Handles wallet management, deposits, withdrawals, and fund locking/unlocking.
  */
-@Getter
 @Service
 public class WalletService {
 

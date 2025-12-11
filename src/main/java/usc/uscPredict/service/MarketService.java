@@ -22,7 +22,6 @@ import java.util.UUID;
  * Service layer for Market entity.
  * Handles business logic for market management.
  */
-@Getter
 @Service
 public class MarketService {
 

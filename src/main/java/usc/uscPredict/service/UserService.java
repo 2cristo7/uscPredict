@@ -12,9 +12,9 @@ import usc.uscPredict.exception.PredictUsernameNotFoundException;
 import usc.uscPredict.model.User;
 import usc.uscPredict.repository.UserRepository;
 
+import java.util.Set;
 import java.util.UUID;
 
-@Getter
 @Service
 public class UserService implements UserDetailsService {
     private final UserRepository users;
@@ -48,5 +48,9 @@ public class UserService implements UserDetailsService {
             throw new PredictUsernameNotFoundException("User not found with ID: " + uuid);
         }
         return users.save(user);
+    }
+
+    public Set<User> getAllUsers() {
+        return users.findAll();
     }
 }

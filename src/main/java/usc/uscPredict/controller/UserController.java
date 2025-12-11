@@ -52,7 +52,7 @@ class UserController {
     @GetMapping
     @JsonView(User.UserSummaryView.class)
     public ResponseEntity<@NonNull Set<User>> getAllUsers() {
-        return new ResponseEntity<>(userService.getUsers().findAll(), HttpStatus.OK);
+        return new ResponseEntity<>(userService.getAllUsers(), HttpStatus.OK);
     }
 
     @Operation(

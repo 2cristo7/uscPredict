@@ -20,7 +20,6 @@ import java.util.UUID;
  * Handles audit logging of all balance and position changes.
  * Transactions are typically created by other services, not directly by users.
  */
-@Getter
 @Service
 public class TransactionService {
 

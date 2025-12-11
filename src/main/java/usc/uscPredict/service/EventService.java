@@ -17,7 +17,6 @@ import java.util.UUID;
  * Service layer for Event entity.
  * Handles business logic for event management.
  */
-@Getter
 @Service
 public class EventService {
 

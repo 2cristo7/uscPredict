@@ -20,7 +20,6 @@ import java.util.UUID;
  * Service layer for Order entity.
  * Handles business logic for order management and matching.
  */
-@Getter
 @Service
 public class OrderService {
 
@@ -29,6 +28,7 @@ public class OrderService {
     private final MarketRepository marketRepository;
     private final WalletService walletService;
     private final MarketService marketService;
+    private final TransactionService transactionService;
 
     @Autowired
     public OrderService(
@@ -36,12 +36,14 @@ public class OrderService {
             UserRepository userRepository,
             MarketRepository marketRepository,
             WalletService walletService,
-            MarketService marketService) {
+            MarketService marketService,
+            TransactionService transactionService) {
         this.orderRepository = orderRepository;
         this.userRepository = userRepository;
         this.marketRepository = marketRepository;
         this.walletService = walletService;
         this.marketService = marketService;
+        this.transactionService = transactionService;
     }
 
     /**
@@ -121,7 +123,7 @@ public class OrderService {
                 TransactionType.ORDER_PLACED,
                 requiredFunds
         );
-        walletService.getTransactionService().createTransaction(transaction);
+        transactionService.createTransaction(transaction);
 
         // 8. Save order in repository
         orderRepository.save(order);
@@ -191,6 +193,7 @@ public class OrderService {
                 TransactionType.ORDER_CANCELLED,
                 lockedAmount
         );
+        transactionService.createTransaction(transaction);
 
         // 5. Set state to CANCELLED
         order.setState(OrderState.CANCELLED);

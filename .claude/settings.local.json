@@ -1,11 +1,16 @@
 {
   "permissions": {
     "allow": [
+      "Bash(*)",
       "Bash(./gradlew build:*)",
       "Bash(npm run build:*)",
       "Bash(netstat:*)",
       "Bash(findstr:*)",
-      "Bash(./gradlew bootRun:*)"
+      "Bash(./gradlew bootRun:*)",
+      "Bash(grep:*)",
+      "Bash(./gradlew test:*)",
+      "Bash(cat:*)",
+      "WebSearch"
     ],
     "deny": [],
     "ask": []
