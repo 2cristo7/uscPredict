@@ -53,4 +53,12 @@ public interface OrderRepository extends CrudRepository<@NonNull Order, @NonNull
             @NonNull OrderSide side,
             @NonNull OrderState state
     );
+
+    /**
+     * Retrieves executed orders for price history, sorted by updatedAt ASC.
+     * @param marketId The market UUID
+     * @return List of executed orders (FILLED or PARTIALLY_FILLED) sorted by update time
+     */
+    @Query("SELECT o FROM Order o WHERE o.marketId = ?1 AND o.state IN ('FILLED', 'PARTIALLY_FILLED') AND o.executionPrice IS NOT NULL ORDER BY o.updatedAt ASC")
+    List<Order> findExecutedOrdersByMarketIdOrderByUpdatedAt(@NonNull UUID marketId);
 }

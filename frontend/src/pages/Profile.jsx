@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { walletAPI, orderAPI, positionAPI, transactionAPI } from '../services/api';
+import { walletAPI, orderAPI, positionAPI, transactionAPI, marketAPI, eventAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
@@ -227,7 +227,7 @@ const PositionsTable = ({ positions }) => {
     {
       key: 'market',
       header: 'Market',
-      render: (_, row) => row.market?.event?.title || 'Unknown',
+      render: (_, row) => row.marketName || 'Unknown',
     },
     {
       key: 'yesShares',
@@ -248,21 +248,53 @@ const PositionsTable = ({ positions }) => {
       ),
     },
     {
-      key: 'avgCost',
-      header: 'Avg Cost',
-      render: (value) => value ? `$${value.toFixed(2)}` : '-',
+      key: 'currentValue',
+      header: 'Current Value',
+      render: (_, row) => {
+        const lastPrice = row.lastPrice || 0.5;
+        const yesValue = (row.yesShares || 0) * lastPrice;
+        const noValue = (row.noShares || 0) * (1 - lastPrice);
+        const total = yesValue + noValue;
+        return `$${total.toFixed(2)}`;
+      },
     },
     {
-      key: 'unrealizedPnl',
-      header: 'P&L',
-      render: (value) => {
-        if (!value) return '-';
-        const isPositive = value >= 0;
+      key: 'valueIfYes',
+      header: 'If YES Wins',
+      render: (_, row) => {
+        // YES shares pay $1 each, NO shares pay $0
+        const value = row.yesShares || 0;
         return (
-          <span className={isPositive ? 'text-[#22c55e]' : 'text-[#ef4444]'}>
-            {isPositive ? '+' : ''}{value.toFixed(2)}
+          <span className="text-[#22c55e]">
+            ${value.toFixed(2)}
           </span>
         );
+      },
+    },
+    {
+      key: 'valueIfNo',
+      header: 'If NO Wins',
+      render: (_, row) => {
+        // NO shares pay $1 each, YES shares pay $0
+        const value = row.noShares || 0;
+        return (
+          <span className="text-[#ef4444]">
+            ${value.toFixed(2)}
+          </span>
+        );
+      },
+    },
+    {
+      key: 'avgCost',
+      header: 'Avg Cost',
+      render: (_, row) => {
+        const avgYes = row.avgYesCost;
+        const avgNo = row.avgNoCost;
+        if (!avgYes && !avgNo) return '-';
+        const parts = [];
+        if (avgYes) parts.push(`Y:${(avgYes * 100).toFixed(0)}c`);
+        if (avgNo) parts.push(`N:${(avgNo * 100).toFixed(0)}c`);
+        return parts.join(' / ');
       },
     },
   ];
@@ -318,15 +350,36 @@ const Profile = () => {
     if (!user?.uuid) return;
 
     try {
-      const [walletRes, ordersRes, positionsRes, transactionsRes] = await Promise.all([
+      const [walletRes, ordersRes, positionsRes, transactionsRes, marketsRes, eventsRes] = await Promise.all([
         walletAPI.v1.getByUserId(user.uuid),
         orderAPI.v1.getByUserId(user.uuid),
         positionAPI.v1.getByUserId(user.uuid),
         transactionAPI.v1.getByUserId(user.uuid),
+        marketAPI.v1.getAll(),
+        eventAPI.v1.getAll(),
       ]);
+
+      // Create lookup maps for markets and events
+      const marketsMap = {};
+      (marketsRes.data || []).forEach(m => { marketsMap[m.uuid] = m; });
+      const eventsMap = {};
+      (eventsRes.data || []).forEach(e => { eventsMap[e.uuid] = e; });
+
+      // Enrich positions with lastPrice from market
+      const enrichedPositions = (positionsRes.data || []).map(pos => {
+        const market = marketsMap[pos.marketId];
+        const event = market ? eventsMap[market.eventId] : null;
+        const lastPrice = market?.lastPrice || 0.5;
+        return {
+          ...pos,
+          marketName: event?.title || market?.outcome || 'Unknown',
+          lastPrice,
+        };
+      });
+
       setWallet(walletRes.data);
       setOrders(ordersRes.data);
-      setPositions(positionsRes.data);
+      setPositions(enrichedPositions);
       setTransactions(transactionsRes.data);
     } catch (err) {
       console.error('Failed to fetch profile data:', err);

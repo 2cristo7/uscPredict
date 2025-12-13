@@ -189,6 +189,21 @@ public class MarketController {
     }
 
     /**
+     * GET /markets/{uuid}/price-history
+     * Retrieves price history for a market.
+     * @param uuid The market UUID
+     * @param bucketMinutes Optional bucket size in minutes (default: 60)
+     * @return 200 OK with list of price points
+     */
+    @GetMapping("/{uuid}/price-history")
+    public ResponseEntity<List<MarketService.PricePoint>> getPriceHistory(
+            @PathVariable UUID uuid,
+            @RequestParam(defaultValue = "60") int bucketMinutes) {
+        List<MarketService.PricePoint> history = marketService.getPriceHistory(uuid, bucketMinutes);
+        return new ResponseEntity<>(history, HttpStatus.OK);
+    }
+
+    /**
      * Inner class for match result response.
      */
     public static class MatchResult {

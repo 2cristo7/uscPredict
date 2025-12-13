@@ -250,12 +250,13 @@ const TradingPanel = ({ market, event, onOrderPlaced }) => {
   const [shareType, setShareType] = useState('YES');
   const [orderType, setOrderType] = useState('BUY');
   const [quantity, setQuantity] = useState('');
-  const [price, setPrice] = useState('');
+  const [priceInCents, setPriceInCents] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  const priceNum = parseFloat(price) || 0;
+  // Convert cents to dollars for calculations
+  const priceNum = priceInCents ? parseInt(priceInCents) / 100 : 0;
   const quantityNum = parseInt(quantity) || 0;
 
   // Calculate costs and potential returns
@@ -263,6 +264,53 @@ const TradingPanel = ({ market, event, onOrderPlaced }) => {
   const potentialPayout = quantityNum; // Each share pays $1 if correct
   const potentialProfit = potentialPayout - cost;
   const returnPct = cost > 0 ? ((potentialProfit / cost) * 100).toFixed(0) : 0;
+
+  // Get market price for auto-fill
+  const marketPriceYes = market?.lastPrice ? Math.round(market.lastPrice * 100) : 50;
+  const marketPriceNo = 100 - marketPriceYes;
+  const currentMarketPrice = shareType === 'YES' ? marketPriceYes : marketPriceNo;
+
+  // Handle price input with auto-detection (cents vs dollars)
+  const handlePriceChange = (value) => {
+    if (value === '') {
+      setPriceInCents('');
+      return;
+    }
+    const numValue = parseFloat(value);
+    if (isNaN(numValue)) return;
+
+    // If value contains decimal or is < 1, treat as dollars
+    if (value.includes('.') || numValue < 1) {
+      const cents = Math.round(numValue * 100);
+      if (cents >= 1 && cents <= 99) {
+        setPriceInCents(String(cents));
+      }
+    } else {
+      // Treat as cents directly
+      if (numValue >= 1 && numValue <= 99) {
+        setPriceInCents(String(Math.round(numValue)));
+      }
+    }
+  };
+
+  // Price stepper buttons
+  const adjustPrice = (delta) => {
+    const current = parseInt(priceInCents) || currentMarketPrice;
+    const newPrice = Math.max(1, Math.min(99, current + delta));
+    setPriceInCents(String(newPrice));
+  };
+
+  // Shares stepper buttons
+  const adjustShares = (delta) => {
+    const current = parseInt(quantity) || 0;
+    const newQuantity = Math.max(1, current + delta);
+    setQuantity(String(newQuantity));
+  };
+
+  // Set market price
+  const setMarketPrice = () => {
+    setPriceInCents(String(currentMarketPrice));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -280,9 +328,9 @@ const TradingPanel = ({ market, event, onOrderPlaced }) => {
         quantity: quantityNum,
         price: priceNum,
       });
-      setSuccess(`Order placed: ${orderType} ${quantityNum} ${shareType} @ ${(priceNum * 100).toFixed(0)}c`);
+      setSuccess(`Order placed: ${orderType} ${quantityNum} ${shareType} @ ${priceInCents}c`);
       setQuantity('');
-      setPrice('');
+      setPriceInCents('');
       onOrderPlaced?.();
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
@@ -359,41 +407,82 @@ const TradingPanel = ({ market, event, onOrderPlaced }) => {
           </div>
         )}
 
-        {/* Quantity */}
+        {/* Quantity with stepper buttons */}
         <div>
           <label className="block text-sm font-medium text-[#a0a0a0] mb-2">
             Shares
           </label>
-          <input
-            type="number"
-            value={quantity}
-            onChange={(e) => setQuantity(e.target.value)}
-            placeholder="0"
-            min="1"
-            className="w-full px-4 py-3 bg-[#0a0a0a] border border-[#2a2a2a] rounded-lg text-white text-lg font-medium placeholder-[#555555] focus:outline-none focus:border-[#3b82f6]"
-          />
-        </div>
-
-        {/* Price */}
-        <div>
-          <label className="block text-sm font-medium text-[#a0a0a0] mb-2">
-            Limit Price (1-99c)
-          </label>
-          <div className="relative">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => adjustShares(-1)}
+              className="w-10 h-10 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-white font-bold hover:bg-[#2a2a2a] transition-colors flex items-center justify-center"
+            >
+              −
+            </button>
             <input
               type="number"
-              value={price}
-              onChange={(e) => setPrice(e.target.value)}
-              placeholder="0.50"
-              min="0.01"
-              max="0.99"
-              step="0.01"
-              className="w-full px-4 py-3 bg-[#0a0a0a] border border-[#2a2a2a] rounded-lg text-white text-lg font-medium placeholder-[#555555] focus:outline-none focus:border-[#3b82f6]"
+              value={quantity}
+              onChange={(e) => setQuantity(e.target.value)}
+              placeholder="0"
+              min="1"
+              className="flex-1 px-4 py-3 bg-[#0a0a0a] border border-[#2a2a2a] rounded-lg text-white text-lg font-medium placeholder-[#555555] focus:outline-none focus:border-[#3b82f6] text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
-            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[#666666]">
-              = {priceNum ? (priceNum * 100).toFixed(0) : 0}c
-            </span>
+            <button
+              type="button"
+              onClick={() => adjustShares(1)}
+              className="w-10 h-10 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-white font-bold hover:bg-[#2a2a2a] transition-colors flex items-center justify-center"
+            >
+              +
+            </button>
           </div>
+        </div>
+
+        {/* Price with stepper buttons and Market button */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-sm font-medium text-[#a0a0a0]">
+              Limit Price (1-99c)
+            </label>
+            <button
+              type="button"
+              onClick={setMarketPrice}
+              className="text-xs text-[#3b82f6] hover:text-[#60a5fa] font-medium"
+            >
+              Market ({currentMarketPrice}c)
+            </button>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => adjustPrice(-1)}
+              className="w-10 h-10 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-white font-bold hover:bg-[#2a2a2a] transition-colors flex items-center justify-center"
+            >
+              −
+            </button>
+            <div className="relative flex-1">
+              <input
+                type="text"
+                value={priceInCents}
+                onChange={(e) => handlePriceChange(e.target.value)}
+                placeholder={String(currentMarketPrice)}
+                className="w-full px-4 py-3 bg-[#0a0a0a] border border-[#2a2a2a] rounded-lg text-white text-lg font-medium placeholder-[#555555] focus:outline-none focus:border-[#3b82f6] text-center"
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[#666666] text-sm">
+                c
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => adjustPrice(1)}
+              className="w-10 h-10 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-white font-bold hover:bg-[#2a2a2a] transition-colors flex items-center justify-center"
+            >
+              +
+            </button>
+          </div>
+          <p className="text-xs text-[#555555] mt-1 text-center">
+            Enter cents (1-99) or dollars (0.01-0.99)
+          </p>
         </div>
 
         {/* Order Summary */}

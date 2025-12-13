@@ -153,6 +153,7 @@ export const marketAPI = {
     getById: (id) => api.get(`/v1/markets/${id}`),
     getByEventId: (eventId) => api.get(`/v1/markets/event/${eventId}`),
     getByStatus: (status) => api.get(`/v1/markets/status/${status}`),
+    getPriceHistory: (id, bucketMinutes = 60) => api.get(`/v1/markets/${id}/price-history`, { params: { bucketMinutes } }),
     create: (market) => api.post('/v1/markets', market),
     update: (id, market) => api.put(`/v1/markets/${id}`, market),
     delete: (id) => api.delete(`/v1/markets/${id}`),

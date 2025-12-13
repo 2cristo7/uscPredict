@@ -13,10 +13,10 @@ import usc.uscPredict.repository.OrderRepository;
 import usc.uscPredict.repository.PositionRepository;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Service layer for Market entity.
@@ -293,11 +293,19 @@ public class MarketService {
                 walletService.unlockFunds(sellOrder.getUserId(), sellerRefund);
             }
 
-            // 4.5 Update filled quantities
+            // 4.5 Set execution price on both orders
+            buyOrder.setExecutionPrice(executionPrice);
+            sellOrder.setExecutionPrice(executionPrice);
+
+            // 4.5.1 Update market's last traded price
+            market.setLastPrice(executionPrice);
+            marketRepository.save(market);
+
+            // 4.6 Update filled quantities
             buyOrder.setFilledQuantity(buyOrder.getFilledQuantity() + quantityToFill);
             sellOrder.setFilledQuantity(sellOrder.getFilledQuantity() + quantityToFill);
 
-            // 4.6 Update order states
+            // 4.7 Update order states
             if (buyOrder.getFilledQuantity().equals(buyOrder.getQuantity())) {
                 buyOrder.setState(OrderState.FILLED);
             } else {
@@ -330,9 +338,9 @@ public class MarketService {
             transactionService.createTransaction(buyTransaction);
             transactionService.createTransaction(sellTransaction);
 
-            // 4.9 Update or create positions
-            updatePosition(buyOrder.getUserId(), marketId, quantityToFill, true);
-            updatePosition(sellOrder.getUserId(), marketId, quantityToFill, false);
+            // 4.9 Update or create positions with execution price for avgCost
+            updatePosition(buyOrder.getUserId(), marketId, quantityToFill, true, executionPrice);
+            updatePosition(sellOrder.getUserId(), marketId, quantityToFill, false, executionPrice);
 
             // 4.10 Increment match count
             matchCount++;
@@ -354,24 +362,98 @@ public class MarketService {
     /**
      * Updates or creates a position for a user in a market.
      * Adds shares to either YES or NO based on the order side.
+     * Calculates weighted average cost for the position.
      *
      * @param userId The user UUID
      * @param marketId The market UUID
      * @param quantity The number of shares to add
      * @param isYes True if buying YES shares, false if buying NO shares
+     * @param executionPrice The price at which the trade was executed
      */
-    private void updatePosition(UUID userId, UUID marketId, int quantity, boolean isYes) {
+    private void updatePosition(UUID userId, UUID marketId, int quantity, boolean isYes, BigDecimal executionPrice) {
         Position position = positionRepository
                 .findByUserIdAndMarketId(userId, marketId)
                 .orElse(new Position(userId, marketId));
 
-        // Update appropriate share type
+        // Update appropriate share type and calculate weighted average cost
         if (isYes) {
-            position.setYesShares(position.getYesShares() + quantity);
+            int oldShares = position.getYesShares();
+            BigDecimal oldAvgCost = position.getAvgYesCost() != null ? position.getAvgYesCost() : BigDecimal.ZERO;
+
+            // Weighted average: (oldShares * oldAvg + newShares * newPrice) / totalShares
+            BigDecimal totalCost = oldAvgCost.multiply(BigDecimal.valueOf(oldShares))
+                    .add(executionPrice.multiply(BigDecimal.valueOf(quantity)));
+            int totalShares = oldShares + quantity;
+            BigDecimal newAvgCost = totalCost.divide(BigDecimal.valueOf(totalShares), 4, java.math.RoundingMode.HALF_UP);
+
+            position.setYesShares(totalShares);
+            position.setAvgYesCost(newAvgCost);
         } else {
-            position.setNoShares(position.getNoShares() + quantity);
+            int oldShares = position.getNoShares();
+            BigDecimal oldAvgCost = position.getAvgNoCost() != null ? position.getAvgNoCost() : BigDecimal.ZERO;
+
+            // NO buyer pays (1 - executionPrice) per share
+            BigDecimal noCost = BigDecimal.ONE.subtract(executionPrice);
+            BigDecimal totalCost = oldAvgCost.multiply(BigDecimal.valueOf(oldShares))
+                    .add(noCost.multiply(BigDecimal.valueOf(quantity)));
+            int totalShares = oldShares + quantity;
+            BigDecimal newAvgCost = totalCost.divide(BigDecimal.valueOf(totalShares), 4, java.math.RoundingMode.HALF_UP);
+
+            position.setNoShares(totalShares);
+            position.setAvgNoCost(newAvgCost);
         }
 
         positionRepository.save(position);
+    }
+
+    /**
+     * DTO for price history data points.
+     */
+    @Getter
+    public static class PricePoint {
+        private final LocalDateTime timestamp;
+        private final BigDecimal price;
+
+        public PricePoint(LocalDateTime timestamp, BigDecimal price) {
+            this.timestamp = timestamp;
+            this.price = price;
+        }
+    }
+
+    /**
+     * Gets the price history for a market, bucketed by time intervals.
+     * Returns execution prices from filled orders, grouped into time buckets.
+     *
+     * @param marketId The market UUID
+     * @param bucketMinutes The size of each time bucket in minutes
+     * @return List of PricePoint representing price over time
+     */
+    public List<PricePoint> getPriceHistory(UUID marketId, int bucketMinutes) {
+        List<Order> executedOrders = orderRepository.findExecutedOrdersByMarketIdOrderByUpdatedAt(marketId);
+
+        if (executedOrders.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        // Group by time bucket and calculate average price per bucket
+        Map<LocalDateTime, List<Order>> buckets = executedOrders.stream()
+                .collect(Collectors.groupingBy(order -> {
+                    LocalDateTime time = order.getUpdatedAt();
+                    long minutesSinceEpoch = time.toEpochSecond(java.time.ZoneOffset.UTC) / 60;
+                    long bucketStart = (minutesSinceEpoch / bucketMinutes) * bucketMinutes;
+                    return LocalDateTime.ofEpochSecond(bucketStart * 60, 0, java.time.ZoneOffset.UTC);
+                }));
+
+        // Convert to PricePoints with average price per bucket
+        return buckets.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .map(entry -> {
+                    BigDecimal avgPrice = entry.getValue().stream()
+                            .map(Order::getExecutionPrice)
+                            .reduce(BigDecimal.ZERO, BigDecimal::add)
+                            .divide(BigDecimal.valueOf(entry.getValue().size()), 4, java.math.RoundingMode.HALF_UP);
+                    return new PricePoint(entry.getKey(), avgPrice);
+                })
+                .collect(Collectors.toList());
     }
 }

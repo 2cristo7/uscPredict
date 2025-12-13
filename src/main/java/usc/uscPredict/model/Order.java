@@ -78,6 +78,12 @@ public class Order {
     @JsonView(OrderSummaryView.class)
     private OrderState state = OrderState.PENDING;
 
+    @DecimalMin(value = "0.0", inclusive = false)
+    @DecimalMax(value = "1.0", inclusive = true)
+    @Column(precision = 19, scale = 4)
+    @JsonView(OrderDetailView.class)
+    private BigDecimal executionPrice;
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     @JsonView(OrderDetailView.class)

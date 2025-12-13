@@ -81,6 +81,20 @@ public class Position {
     @JsonView(PositionSummaryView.class)
     private Integer noShares = 0;
 
+    /**
+     * Average cost per YES share (weighted average of execution prices).
+     */
+    @Column(precision = 19, scale = 4)
+    @JsonView(PositionSummaryView.class)
+    private BigDecimal avgYesCost;
+
+    /**
+     * Average cost per NO share (weighted average of 1-executionPrice).
+     */
+    @Column(precision = 19, scale = 4)
+    @JsonView(PositionSummaryView.class)
+    private BigDecimal avgNoCost;
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     @JsonView(PositionDetailView.class)
