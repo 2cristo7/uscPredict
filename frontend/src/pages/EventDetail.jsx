@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { eventAPI, orderAPI, positionAPI, commentAPI, marketAPI } from '../services/api';
+import { eventAPI, orderAPI, positionAPI, commentAPI, marketAPI, userAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { ensureArray } from '../utils/arrayHelpers';
 import Card from '../components/common/Card';
@@ -856,14 +856,42 @@ const MarketStats = ({ event, market }) => {
 const CommentsSection = ({ eventId }) => {
   const { isAuthenticated, user } = useAuth();
   const [comments, setComments] = useState([]);
+  const [usersMap, setUsersMap] = useState({});
   const [newComment, setNewComment] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
+  // Parse backend date format "dd-MM-yyyy HH:mm:ss"
+  const parseBackendDate = (dateStr) => {
+    if (!dateStr) return null;
+    // Check if already ISO format
+    if (dateStr.includes('T')) {
+      return new Date(dateStr);
+    }
+    // Parse "dd-MM-yyyy HH:mm:ss" format
+    const match = dateStr.match(/(\d{2})-(\d{2})-(\d{4})\s+(\d{2}):(\d{2}):(\d{2})/);
+    if (match) {
+      const [, day, month, year, hour, min, sec] = match;
+      return new Date(year, month - 1, day, hour, min, sec);
+    }
+    return new Date(dateStr);
+  };
+
   const fetchComments = useCallback(async () => {
     try {
-      const response = await commentAPI.v1.getByEventId(eventId);
-      setComments(ensureArray(response.data));
+      // Fetch comments and users in parallel
+      const [commentsRes, usersRes] = await Promise.all([
+        commentAPI.v1.getByEventId(eventId),
+        userAPI.v1.getAll(),
+      ]);
+
+      // Build users map by UUID
+      const usrMap = {};
+      ensureArray(usersRes.data).forEach(u => {
+        usrMap[u.uuid] = u;
+      });
+      setUsersMap(usrMap);
+      setComments(ensureArray(commentsRes.data));
     } catch (err) {
       console.error('Failed to fetch comments:', err);
       setComments([]);
@@ -896,9 +924,12 @@ const CommentsSection = ({ eventId }) => {
     }
   };
 
-  const formatTimeAgo = (date) => {
+  const formatTimeAgo = (dateStr) => {
+    const date = parseBackendDate(dateStr);
+    if (!date || isNaN(date.getTime())) return '';
+
     const now = new Date();
-    const diff = now - new Date(date);
+    const diff = now - date;
     const mins = Math.floor(diff / 60000);
     const hours = Math.floor(diff / 3600000);
     const days = Math.floor(diff / 86400000);
@@ -907,7 +938,18 @@ const CommentsSection = ({ eventId }) => {
     if (mins < 60) return `${mins}m ago`;
     if (hours < 24) return `${hours}h ago`;
     if (days < 7) return `${days}d ago`;
-    return new Date(date).toLocaleDateString();
+    return date.toLocaleDateString();
+  };
+
+  // Get user name from usersMap
+  const getUserName = (userId) => {
+    const u = usersMap[userId];
+    return u?.name || 'Anonymous';
+  };
+
+  const getUserInitial = (userId) => {
+    const name = getUserName(userId);
+    return name?.[0]?.toUpperCase() || '?';
   };
 
   return (
@@ -959,11 +1001,11 @@ const CommentsSection = ({ eventId }) => {
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 bg-[#3b82f6] rounded-full flex items-center justify-center">
                     <span className="text-xs font-medium text-white">
-                      {comment.user?.name?.[0]?.toUpperCase() || '?'}
+                      {getUserInitial(comment.userId)}
                     </span>
                   </div>
                   <span className="text-sm font-medium text-white">
-                    {comment.user?.name || 'Anonymous'}
+                    {getUserName(comment.userId)}
                   </span>
                 </div>
                 <span className="text-xs text-[#666666]">
