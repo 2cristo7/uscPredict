@@ -38,8 +38,8 @@ public class SecurityConfig {
                         // Authentication endpoints - permitAll
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/auth/**").permitAll()
-                        // Swagger/OpenAPI
-                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                        // Swagger/OpenAPI/Scalar
+                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/scalar/**").permitAll()
                         // Actuator health check
                         .requestMatchers("/actuator/health").permitAll()
                         // Public read-only endpoints

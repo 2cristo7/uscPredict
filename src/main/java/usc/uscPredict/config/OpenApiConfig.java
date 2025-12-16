@@ -37,6 +37,12 @@ public class OpenApiConfig {
                 ))
                 .tags(List.of(
                         new Tag()
+                                .name("Home")
+                                .description("Endpoints de información general de la API y estado del servicio."),
+                        new Tag()
+                                .name("Authentication")
+                                .description("Endpoints de autenticación y gestión de sesiones (login, registro, refresh, logout)."),
+                        new Tag()
                                 .name("Events")
                                 .description("Endpoints para gestionar eventos de predicción. " +
                                         "Los eventos representan mercados de predicción con resultados YES/NO."),
@@ -47,8 +53,20 @@ public class OpenApiConfig {
                                 .name("Comments")
                                 .description("Endpoints para gestionar comentarios en eventos."),
                         new Tag()
+                                .name("Markets")
+                                .description("Endpoints para gestionar mercados de predicción asociados a eventos."),
+                        new Tag()
                                 .name("Orders")
-                                .description("Endpoints para gestionar órdenes de compra/venta en eventos.")
+                                .description("Endpoints para gestionar órdenes de compra/venta en mercados."),
+                        new Tag()
+                                .name("Positions")
+                                .description("Endpoints para rastrear posiciones de usuarios en mercados."),
+                        new Tag()
+                                .name("Transactions")
+                                .description("Endpoints para el historial de transacciones y auditoría."),
+                        new Tag()
+                                .name("Wallets")
+                                .description("Endpoints para gestionar carteras y operaciones de fondos.")
                 ));
     }
 }

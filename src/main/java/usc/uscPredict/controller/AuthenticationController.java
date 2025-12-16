@@ -1,5 +1,11 @@
 package usc.uscPredict.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.web.server.Cookie;
 import org.springframework.http.HttpHeaders;
@@ -22,6 +28,7 @@ import usc.uscPredict.service.AuthenticationService;
 
 import java.time.Duration;
 
+@Tag(name = "Authentication", description = "API de autenticación y gestión de sesiones")
 @RestController
 @RequestMapping("/api/v1/auth")
 public class AuthenticationController {
@@ -42,6 +49,17 @@ public class AuthenticationController {
         this.passwordEncoder = passwordEncoder;
     }
 
+    @Operation(
+            summary = "Iniciar sesión",
+            description = "Autentica un usuario con email y contraseña. Retorna un JWT en el header Authorization " +
+                    "y establece una cookie HttpOnly con el refresh token para renovación automática"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Login exitoso. JWT en header Authorization",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = LoginResponse.class))),
+            @ApiResponse(responseCode = "401", description = "Credenciales inválidas", content = @Content)
+    })
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest request) {
         Authentication auth = authenticationService.login(request.email(), request.password());
@@ -71,6 +89,18 @@ public class AuthenticationController {
                 .body(response);
     }
 
+    @Operation(
+            summary = "Registrar nuevo usuario",
+            description = "Crea una nueva cuenta de usuario en la plataforma. El email debe ser único. " +
+                    "La contraseña será hasheada antes de almacenarse"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Usuario registrado exitosamente",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = LoginResponse.class))),
+            @ApiResponse(responseCode = "409", description = "El email ya está registrado", content = @Content),
+            @ApiResponse(responseCode = "400", description = "Datos de registro inválidos", content = @Content)
+    })
     @PostMapping("/register")
     public ResponseEntity<LoginResponse> register(@Valid @RequestBody RegisterRequest request) {
         if (userRepository.findByEmail(request.email()).isPresent()) {
@@ -94,6 +124,17 @@ public class AuthenticationController {
         ));
     }
 
+    @Operation(
+            summary = "Renovar token de acceso",
+            description = "Genera un nuevo JWT usando el refresh token almacenado en la cookie. " +
+                    "También renueva el refresh token por seguridad"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Token renovado exitosamente. Nuevo JWT en header",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = LoginResponse.class))),
+            @ApiResponse(responseCode = "401", description = "Refresh token inválido o expirado", content = @Content)
+    })
     @PostMapping("/refresh")
     public ResponseEntity<LoginResponse> refresh(
             @CookieValue(name = REFRESH_TOKEN_COOKIE_NAME) String refreshToken) {
@@ -129,6 +170,15 @@ public class AuthenticationController {
         throw new InvalidRefreshTokenException(refreshToken);
     }
 
+    @Operation(
+            summary = "Cerrar sesión",
+            description = "Invalida todos los tokens del usuario (JWT y refresh token). " +
+                    "Elimina la cookie del refresh token. Requiere autenticación"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Sesión cerrada exitosamente"),
+            @ApiResponse(responseCode = "401", description = "No autenticado", content = @Content)
+    })
     @PostMapping("/logout")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Void> logout(Authentication auth) {
