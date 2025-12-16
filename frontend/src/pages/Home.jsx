@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { eventAPI } from '../services/api';
+import { eventAPI, marketAPI } from '../services/api';
 import Badge from '../components/common/Badge';
 import Spinner from '../components/common/Spinner';
 
@@ -122,7 +122,7 @@ const MarketCard = ({ event }) => {
 
           {/* Status and Resolution Date */}
           <div className="flex items-center gap-2 mb-4 text-xs">
-            <Badge status={event.status} size="sm" />
+            <Badge status={event.state} size="sm" />
             {event.resolutionDate && (
               <>
                 <span className="text-[#555555]">·</span>
@@ -190,14 +190,34 @@ const Home = () => {
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        const response = await eventAPI.v1.getAll();
-        // Ensure data is an array
-        const eventsData = Array.isArray(response.data) ? response.data : [];
-        setEvents(eventsData);
+        // Fetch events and markets in parallel
+        const [eventsRes, marketsRes] = await Promise.all([
+          eventAPI.v1.getAll(),
+          marketAPI.v1.getAll(),
+        ]);
+        const eventsData = Array.isArray(eventsRes.data) ? eventsRes.data : [];
+        const marketsData = Array.isArray(marketsRes.data) ? marketsRes.data : [];
+
+        // Create a map of eventId -> market for quick lookup
+        const marketsByEventId = {};
+        marketsData.forEach(market => {
+          if (!marketsByEventId[market.eventId]) {
+            marketsByEventId[market.eventId] = [];
+          }
+          marketsByEventId[market.eventId].push(market);
+        });
+
+        // Enrich events with their markets
+        const enrichedEvents = eventsData.map(event => ({
+          ...event,
+          markets: marketsByEventId[event.uuid] || [],
+        }));
+
+        setEvents(enrichedEvents);
       } catch (err) {
         setError('Failed to load events');
         console.error(err);
-        setEvents([]); // Set empty array on error
+        setEvents([]);
       } finally {
         setLoading(false);
       }
@@ -212,8 +232,8 @@ const Home = () => {
   );
 
   // Separate active and other events
-  const activeEvents = filteredEvents.filter((e) => e.status === 'OPEN');
-  const otherEvents = filteredEvents.filter((e) => e.status !== 'OPEN');
+  const activeEvents = filteredEvents.filter((e) => e.state === 'OPEN');
+  const otherEvents = filteredEvents.filter((e) => e.state !== 'OPEN');
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

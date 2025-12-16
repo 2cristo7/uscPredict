@@ -69,7 +69,7 @@ public class Order {
     @NotNull
     @Min(value = 0, message = "Filled quantity cannot be negative")
     @Column(nullable = false)
-    @JsonView(OrderDetailView.class)
+    @JsonView(OrderSummaryView.class)
     private Integer filledQuantity = 0;
 
     @NotNull(message = "Order state cannot be null")

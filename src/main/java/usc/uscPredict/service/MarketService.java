@@ -185,15 +185,18 @@ public class MarketService {
 
     /**
      * Settles a market with a winning outcome.
-     * TODO: Implement settlement logic:
-     * - Mark market as SETTLED
-     * - Resolve all positions
-     * - Distribute winnings
+     * - Cancels all pending orders and refunds locked funds
+     * - Pays out winning positions ($1 per share)
+     * - Creates settlement transactions
+     * - Clears positions
+     * - Marks market as SETTLED
+     *
      * @param uuid The market UUID
+     * @param winningOutcome "YES" or "NO"
      * @return The settled market, or null if not found
      */
     @Transactional
-    public Market settleMarket(UUID uuid) {
+    public Market settleMarket(UUID uuid, String winningOutcome) {
         Optional<Market> marketOpt = marketRepository.findById(uuid);
         if (marketOpt.isEmpty()) {
             return null;
@@ -201,11 +204,79 @@ public class MarketService {
 
         Market market = marketOpt.get();
 
-        // TODO: Implement settlement logic
-        // - Cancel all pending orders
-        // - Calculate position payouts
-        // - Update user wallets
-        // - Create settlement transactions
+        // Validate winning outcome
+        boolean yesWins = "YES".equalsIgnoreCase(winningOutcome);
+        boolean noWins = "NO".equalsIgnoreCase(winningOutcome);
+        if (!yesWins && !noWins) {
+            throw new IllegalArgumentException("Winning outcome must be YES or NO");
+        }
+
+        // 1. Cancel all pending/partially filled orders and refund locked funds
+        Set<Order> activeOrders = orderRepository.findActiveOrdersByMarketId(uuid);
+        for (Order order : activeOrders) {
+            int unfilledQuantity = order.getQuantity() - order.getFilledQuantity();
+            if (unfilledQuantity > 0) {
+                // Calculate locked amount for unfilled quantity
+                BigDecimal lockedAmount;
+                if (order.getSide() == OrderSide.BUY) {
+                    lockedAmount = order.getPrice().multiply(BigDecimal.valueOf(unfilledQuantity));
+                } else {
+                    // SELL orders lock (1 - price) per share
+                    lockedAmount = BigDecimal.ONE.subtract(order.getPrice())
+                            .multiply(BigDecimal.valueOf(unfilledQuantity));
+                }
+
+                // Refund locked funds
+                walletService.unlockFunds(order.getUserId(), lockedAmount);
+
+                // Create ORDER_CANCELLED transaction
+                Transaction cancelTx = new Transaction(
+                        order.getUserId(),
+                        TransactionType.ORDER_CANCELLED,
+                        lockedAmount
+                );
+                transactionService.createTransaction(cancelTx);
+            }
+
+            // Mark order as cancelled
+            order.setState(OrderState.CANCELLED);
+            orderRepository.save(order);
+        }
+
+        // 2. Find all positions for this market and pay out winners
+        Set<Position> positions = positionRepository.findByMarketId(uuid);
+        for (Position position : positions) {
+            BigDecimal payout = BigDecimal.ZERO;
+
+            if (yesWins && position.getYesShares() > 0) {
+                // YES wins: Each YES share pays $1
+                payout = BigDecimal.valueOf(position.getYesShares());
+            } else if (noWins && position.getNoShares() > 0) {
+                // NO wins: Each NO share pays $1
+                payout = BigDecimal.valueOf(position.getNoShares());
+            }
+
+            if (payout.compareTo(BigDecimal.ZERO) > 0) {
+                // Add payout to user's wallet
+                Wallet wallet = walletService.getWalletByUserId(position.getUserId());
+                wallet.setBalance(wallet.getBalance().add(payout));
+
+                // Create SETTLEMENT transaction
+                Transaction settlementTx = new Transaction(
+                        position.getUserId(),
+                        TransactionType.SETTLEMENT,
+                        payout
+                );
+                transactionService.createTransaction(settlementTx);
+            }
+
+            // Clear position shares (market is settled)
+            position.setYesShares(0);
+            position.setNoShares(0);
+            positionRepository.save(position);
+        }
+
+        // 3. Mark market as SETTLED
         market.setStatus(MarketStatus.SETTLED);
 
         return marketRepository.save(market);
@@ -222,13 +293,13 @@ public class MarketService {
         Market market = marketRepository.findById(marketId)
                 .orElseThrow(() -> new IllegalArgumentException("Market ID does not exist"));
 
-        // 1. Get all PENDING BUY orders for market, sorted by price DESC
-        ArrayList<Order> buyOrders = new ArrayList<>(orderRepository.findByMarketIdAndSideAndStateOrderByPriceDesc(
-                marketId, OrderSide.BUY, OrderState.PENDING));
+        // 1. Get all active BUY orders (PENDING + PARTIALLY_FILLED) for market, sorted by price DESC
+        ArrayList<Order> buyOrders = new ArrayList<>(orderRepository.findActiveOrdersByMarketIdAndSideOrderByPriceDesc(
+                marketId, OrderSide.BUY));
 
-        // 2. Get all PENDING SELL orders for market, sorted by price ASC
-        ArrayList<Order> sellOrders = new ArrayList<>(orderRepository.findByMarketIdAndSideAndStateOrderByPriceAsc(
-                marketId, OrderSide.SELL, OrderState.PENDING));
+        // 2. Get all active SELL orders (PENDING + PARTIALLY_FILLED) for market, sorted by price ASC
+        ArrayList<Order> sellOrders = new ArrayList<>(orderRepository.findActiveOrdersByMarketIdAndSideOrderByPriceAsc(
+                marketId, OrderSide.SELL));
 
         // Early exit if no orders on one of the sides
         if (buyOrders.isEmpty() || sellOrders.isEmpty()) {

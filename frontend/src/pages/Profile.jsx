@@ -163,32 +163,48 @@ const WalletCard = ({ wallet, onUpdate }) => {
   );
 };
 
+// Helper to parse backend date format "dd-MM-yyyy HH:mm:ss"
+const parseBackendDate = (dateStr) => {
+  if (!dateStr) return null;
+  // Handle format "dd-MM-yyyy HH:mm:ss"
+  const match = dateStr.match(/^(\d{2})-(\d{2})-(\d{4})\s+(\d{2}):(\d{2}):(\d{2})$/);
+  if (match) {
+    const [, day, month, year, hour, min, sec] = match;
+    return new Date(year, month - 1, day, hour, min, sec);
+  }
+  // Fallback to standard parsing
+  return new Date(dateStr);
+};
+
 // Orders Table Component
 const OrdersTable = ({ orders, onCancelOrder }) => {
   const columns = [
     {
-      key: 'createdAt',
-      header: 'Date',
-      render: (value) => new Date(value).toLocaleDateString(),
-    },
-    {
-      key: 'market',
+      key: 'marketName',
       header: 'Market',
-      render: (_, row) => row.market?.event?.title || 'Unknown',
+      render: (value) => value || 'Unknown',
     },
     {
-      key: 'shareType',
+      key: 'side',
       header: 'Type',
-      render: (value) => (
-        <span className={value === 'YES' ? 'text-[#22c55e]' : 'text-[#ef4444]'}>
-          {value}
-        </span>
-      ),
+      render: (value) => {
+        // BUY = YES shares, SELL = NO shares (per backend logic)
+        const isYes = value === 'BUY';
+        return (
+          <span className={isYes ? 'text-[#22c55e]' : 'text-[#ef4444]'}>
+            {isYes ? 'YES' : 'NO'}
+          </span>
+        );
+      },
     },
     {
       key: 'price',
       header: 'Price',
-      render: (value) => `${(value * 100).toFixed(0)}c`,
+      render: (value, row) => {
+        // For SELL orders (NO shares), show the NO price (1 - price)
+        const displayPrice = row.side === 'SELL' ? (1 - value) : value;
+        return `${(displayPrice * 100).toFixed(0)}c`;
+      },
     },
     {
       key: 'quantity',
@@ -197,16 +213,17 @@ const OrdersTable = ({ orders, onCancelOrder }) => {
     {
       key: 'filledQuantity',
       header: 'Filled',
+      render: (value) => value || 0,
     },
     {
-      key: 'status',
+      key: 'state',
       header: 'Status',
       render: (value) => <Badge status={value} size="sm" />,
     },
     {
       key: 'actions',
       header: '',
-      render: (_, row) => row.status === 'PENDING' && (
+      render: (_, row) => row.state === 'PENDING' && (
         <Button
           size="sm"
           variant="ghost"
@@ -308,7 +325,10 @@ const TransactionsTable = ({ transactions }) => {
     {
       key: 'createdAt',
       header: 'Date',
-      render: (value) => new Date(value).toLocaleDateString(),
+      render: (value) => {
+        const date = parseBackendDate(value);
+        return date && !isNaN(date) ? date.toLocaleDateString() : '-';
+      },
     },
     {
       key: 'type',
@@ -377,8 +397,18 @@ const Profile = () => {
         };
       });
 
+      // Enrich orders with market name
+      const enrichedOrders = (ordersRes.data || []).map(order => {
+        const market = marketsMap[order.marketId];
+        const event = market ? eventsMap[market.eventId] : null;
+        return {
+          ...order,
+          marketName: event?.title || market?.outcome || 'Unknown',
+        };
+      });
+
       setWallet(walletRes.data);
-      setOrders(ordersRes.data);
+      setOrders(enrichedOrders);
       setPositions(enrichedPositions);
       setTransactions(transactionsRes.data);
     } catch (err) {

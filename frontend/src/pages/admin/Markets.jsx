@@ -115,7 +115,17 @@ const Markets = () => {
         marketAPI.v1.getAll(),
         eventAPI.v1.getAll(),
       ]);
-      setMarkets(marketsRes.data);
+      // Build a map of eventId -> event for easy lookup
+      const eventMap = {};
+      eventsRes.data.forEach(e => {
+        eventMap[e.uuid] = e;
+      });
+      // Enrich markets with event data
+      const enrichedMarkets = marketsRes.data.map(m => ({
+        ...m,
+        event: eventMap[m.eventId] || null,
+      }));
+      setMarkets(enrichedMarkets);
       setEvents(eventsRes.data);
     } catch (err) {
       console.error('Failed to fetch data:', err);
@@ -174,10 +184,10 @@ const Markets = () => {
     setShowSettleModal(true);
   };
 
-  const handleSettle = async () => {
+  const handleSettle = async (winningOutcome) => {
     setSaving(true);
     try {
-      await marketAPI.v1.settle(settlingMarket.uuid);
+      await marketAPI.v1.settle(settlingMarket.uuid, winningOutcome);
       setShowSettleModal(false);
       fetchData();
     } catch (err) {
@@ -213,7 +223,17 @@ const Markets = () => {
     {
       key: 'createdAt',
       header: 'Created',
-      render: (value) => new Date(value).toLocaleDateString(),
+      render: (_, row) => {
+        const dateStr = row.event?.createdAt;
+        if (!dateStr) return 'N/A';
+        // Parse "dd-MM-yyyy HH:mm:ss" format
+        const match = dateStr.match(/(\d{2})-(\d{2})-(\d{4})/);
+        if (match) {
+          const [, day, month, year] = match;
+          return new Date(year, month - 1, day).toLocaleDateString();
+        }
+        return new Date(dateStr).toLocaleDateString();
+      },
     },
     {
       key: 'actions',

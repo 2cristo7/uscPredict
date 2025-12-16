@@ -165,13 +165,31 @@ public class MarketController {
      * Settles a market (resolves the outcome and distributes winnings).
      * This is called when the event concludes.
      * @param uuid The market UUID
+     * @param request Body containing winningOutcome (YES or NO)
      * @return 200 OK with settled market, or 404 NOT FOUND
      */
     @PostMapping("/{uuid}/settle")
     @JsonView(Market.MarketDetailView.class)
-    public ResponseEntity<Market> settleMarket(@PathVariable UUID uuid) {
-        Market settled = marketService.settleMarket(uuid);
+    public ResponseEntity<Market> settleMarket(
+            @PathVariable UUID uuid,
+            @RequestBody SettleRequest request) {
+        Market settled = marketService.settleMarket(uuid, request.getWinningOutcome());
         return ResponseEntity.ok(settled);
+    }
+
+    /**
+     * Request body for settle endpoint.
+     */
+    public static class SettleRequest {
+        private String winningOutcome;
+
+        public String getWinningOutcome() {
+            return winningOutcome;
+        }
+
+        public void setWinningOutcome(String winningOutcome) {
+            this.winningOutcome = winningOutcome;
+        }
     }
 
     /**

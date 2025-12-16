@@ -211,7 +211,7 @@ const PriceChart = ({ market, yesProb }) => {
 // ============================================================================
 // ORDER BOOK - Aggregated by price level
 // ============================================================================
-const OrderBook = ({ market, refreshKey }) => {
+const OrderBook = ({ market, refreshKey, onOrderBookUpdate }) => {
   const [orders, setOrders] = useState({ bids: [], asks: [] });
   const [loading, setLoading] = useState(true);
 
@@ -225,12 +225,12 @@ const OrderBook = ({ market, refreshKey }) => {
         const response = await orderAPI.v1.getByMarketId(market.uuid);
         const allOrders = response.data;
 
-        // Filter pending orders and aggregate by price level
-        const pendingOrders = allOrders.filter(o => o.status === 'PENDING');
+        // Filter active orders (PENDING + PARTIALLY_FILLED) and aggregate by price level
+        const activeOrders = allOrders.filter(o => o.state === 'PENDING' || o.state === 'PARTIALLY_FILLED');
 
         // Aggregate bids by price
         const bidMap = new Map();
-        pendingOrders
+        activeOrders
           .filter(o => o.side === 'BUY')
           .forEach(o => {
             const priceKey = o.price.toFixed(2);
@@ -242,7 +242,7 @@ const OrderBook = ({ market, refreshKey }) => {
 
         // Aggregate asks by price
         const askMap = new Map();
-        pendingOrders
+        activeOrders
           .filter(o => o.side === 'SELL')
           .forEach(o => {
             const priceKey = o.price.toFixed(2);
@@ -260,6 +260,11 @@ const OrderBook = ({ market, refreshKey }) => {
           .slice(0, 8);
 
         setOrders({ bids, asks });
+
+        // Notify parent of best bid/ask for market price calculations
+        const bestBid = bids.length > 0 ? bids[0].price : null;
+        const bestAsk = asks.length > 0 ? asks[0].price : null;
+        onOrderBookUpdate?.({ bestBid, bestAsk });
       } catch (err) {
         console.error('Failed to fetch orders:', err);
       } finally {
@@ -372,8 +377,8 @@ const OrderBook = ({ market, refreshKey }) => {
 // ============================================================================
 // TRADING PANEL - Full BUY/SELL functionality
 // ============================================================================
-const TradingPanel = ({ market, event, onOrderPlaced }) => {
-  const { isAuthenticated } = useAuth();
+const TradingPanel = ({ market, event, onOrderPlaced, bestBid, bestAsk }) => {
+  const { isAuthenticated, user } = useAuth();
   const [shareType, setShareType] = useState('YES');
   const [orderType, setOrderType] = useState('BUY');
   const [quantity, setQuantity] = useState('');
@@ -392,9 +397,12 @@ const TradingPanel = ({ market, event, onOrderPlaced }) => {
   const potentialProfit = potentialPayout - cost;
   const returnPct = cost > 0 ? ((potentialProfit / cost) * 100).toFixed(0) : 0;
 
-  // Get market price for auto-fill
-  const marketPriceYes = market?.lastPrice ? Math.round(market.lastPrice * 100) : 50;
-  const marketPriceNo = 100 - marketPriceYes;
+  // Get market price for auto-fill based on order book
+  // For YES: market price = best ask (lowest price to buy YES = lowest SELL order)
+  // For NO: market price = 1 - best bid (highest BUY order price, inverted for NO)
+  const lastPrice = market?.lastPrice ?? 0.5;
+  const marketPriceYes = bestAsk !== null ? Math.round(bestAsk * 100) : Math.round(lastPrice * 100);
+  const marketPriceNo = bestBid !== null ? Math.round((1 - bestBid) * 100) : Math.round((1 - lastPrice) * 100);
   const currentMarketPrice = shareType === 'YES' ? marketPriceYes : marketPriceNo;
 
   // Handle price input with auto-detection (cents vs dollars)
@@ -439,23 +447,39 @@ const TradingPanel = ({ market, event, onOrderPlaced }) => {
     setPriceInCents(String(currentMarketPrice));
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e, submitOrderType) => {
     e.preventDefault();
     if (!isAuthenticated || !market) return;
+
+    // Use the passed orderType directly (not from state, which may be stale)
+    const effectiveOrderType = submitOrderType || orderType;
 
     setError('');
     setSuccess('');
     setLoading(true);
+    setOrderType(effectiveOrderType);
 
     try {
+      // Backend uses: BUY = buy YES shares, SELL = buy NO shares
+      // Map frontend shareType + orderType to backend side
+      let side, price;
+      if (shareType === 'YES') {
+        side = effectiveOrderType; // BUY YES → BUY, SELL YES → SELL
+        price = priceNum;
+      } else {
+        // For NO shares: BUY NO → SELL (at inverted price), SELL NO → BUY
+        side = effectiveOrderType === 'BUY' ? 'SELL' : 'BUY';
+        price = 1 - priceNum; // Convert NO price to YES price
+      }
+
       await orderAPI.v1.create({
-        marketUuid: market.uuid,
-        side: orderType,
-        shareType: shareType,
+        userId: user.uuid,
+        marketId: market.uuid,
+        side: side,
         quantity: quantityNum,
-        price: priceNum,
+        price: price,
       });
-      setSuccess(`Order placed: ${orderType} ${quantityNum} ${shareType} @ ${priceInCents}c`);
+      setSuccess(`Order placed: ${effectiveOrderType} ${quantityNum} ${shareType} @ ${priceInCents}c`);
       setQuantity('');
       setPriceInCents('');
       onOrderPlaced?.();
@@ -468,7 +492,7 @@ const TradingPanel = ({ market, event, onOrderPlaced }) => {
   };
 
   const hasMarket = !!market;
-  const canTrade = hasMarket && event?.status === 'OPEN' && market?.status === 'ACTIVE';
+  const canTrade = hasMarket && event?.state === 'OPEN' && market?.status === 'ACTIVE';
   const isYes = shareType === 'YES';
 
   // Show message if no market exists
@@ -646,8 +670,8 @@ const TradingPanel = ({ market, event, onOrderPlaced }) => {
         ) : (
           <div className="grid grid-cols-2 gap-3">
             <Button
-              type="submit"
-              onClick={() => setOrderType('BUY')}
+              type="button"
+              onClick={(e) => handleSubmit(e, 'BUY')}
               fullWidth
               loading={loading && orderType === 'BUY'}
               variant="success"
@@ -657,8 +681,8 @@ const TradingPanel = ({ market, event, onOrderPlaced }) => {
               BUY
             </Button>
             <Button
-              type="submit"
-              onClick={() => setOrderType('SELL')}
+              type="button"
+              onClick={(e) => handleSubmit(e, 'SELL')}
               fullWidth
               loading={loading && orderType === 'SELL'}
               variant="danger"
@@ -748,9 +772,27 @@ const UserPosition = ({ market, user, refreshKey }) => {
 // MARKET STATS
 // ============================================================================
 const MarketStats = ({ event, market }) => {
+  // Parse date in "dd-MM-yyyy HH:mm:ss" format (backend format)
+  const parseBackendDate = (dateStr) => {
+    if (!dateStr) return null;
+    // Check if already ISO format
+    if (dateStr.includes('T')) {
+      return new Date(dateStr);
+    }
+    // Parse "dd-MM-yyyy HH:mm:ss" format
+    const match = dateStr.match(/(\d{2})-(\d{2})-(\d{4})\s+(\d{2}):(\d{2}):(\d{2})/);
+    if (match) {
+      const [, day, month, year, hour, min, sec] = match;
+      return new Date(year, month - 1, day, hour, min, sec);
+    }
+    return new Date(dateStr);
+  };
+
   const formatDate = (date) => {
     if (!date) return 'TBD';
-    return new Date(date).toLocaleDateString('en-US', {
+    const parsed = parseBackendDate(date);
+    if (!parsed || isNaN(parsed.getTime())) return 'TBD';
+    return parsed.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
       year: 'numeric'
@@ -758,7 +800,8 @@ const MarketStats = ({ event, market }) => {
   };
 
   const formatVolume = (vol) => {
-    if (!vol) return '$0';
+    if (vol === null || vol === undefined) return 'N/A';
+    if (vol === 0) return '$0';
     if (vol >= 1000000) return `$${(vol / 1000000).toFixed(1)}M`;
     if (vol >= 1000) return `$${(vol / 1000).toFixed(1)}K`;
     return `$${vol.toFixed(0)}`;
@@ -795,7 +838,7 @@ const MarketStats = ({ event, market }) => {
 // COMMENTS SECTION
 // ============================================================================
 const CommentsSection = ({ eventId }) => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
   const [loading, setLoading] = useState(true);
@@ -824,7 +867,8 @@ const CommentsSection = ({ eventId }) => {
     setSubmitting(true);
     try {
       await commentAPI.v1.create({
-        eventUuid: eventId,
+        userId: user.uuid,
+        postId: eventId,
         content: newComment.trim(),
       });
       setNewComment('');
@@ -930,6 +974,7 @@ const EventDetail = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [orderBookPrices, setOrderBookPrices] = useState({ bestBid: null, bestAsk: null });
 
   useEffect(() => {
     const fetchEventAndMarket = async () => {
@@ -1001,7 +1046,7 @@ const EventDetail = () => {
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between gap-4">
               <h1 className="text-2xl font-bold text-white">{event.title}</h1>
-              <Badge status={event.status} size="lg" className="shrink-0" />
+              <Badge status={event.state} size="lg" className="shrink-0" />
             </div>
             {event.description && (
               <p className="text-[#888888] mt-1 line-clamp-2">{event.description}</p>
@@ -1018,7 +1063,7 @@ const EventDetail = () => {
           <PriceChart market={market} yesProb={yesProb} />
 
           {/* Order Book */}
-          <OrderBook market={market} refreshKey={refreshKey} />
+          <OrderBook market={market} refreshKey={refreshKey} onOrderBookUpdate={setOrderBookPrices} />
 
           {/* Market Stats */}
           <MarketStats event={event} market={market} />
@@ -1035,6 +1080,8 @@ const EventDetail = () => {
               market={market}
               event={event}
               onOrderPlaced={handleOrderPlaced}
+              bestBid={orderBookPrices.bestBid}
+              bestAsk={orderBookPrices.bestAsk}
             />
 
             {/* User Position */}

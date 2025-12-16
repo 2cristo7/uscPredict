@@ -247,12 +247,13 @@ public class OrderService {
     }
 
     /**
-     * Gets the order book for a market (all pending buy and sell orders).
+     * Gets the order book for a market (all active buy and sell orders).
+     * Includes both PENDING and PARTIALLY_FILLED orders.
      * @param marketId The market UUID
-     * @return Set of pending orders (the order book)
+     * @return Set of active orders (the order book)
      */
     public Set<Order> getOrderBook(UUID marketId) {
-        return orderRepository.findByMarketIdAndState(marketId, OrderState.PENDING);
+        return orderRepository.findActiveOrdersByMarketId(marketId);
     }
 
     /**

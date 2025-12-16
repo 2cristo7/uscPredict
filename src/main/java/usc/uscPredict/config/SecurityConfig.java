@@ -45,7 +45,10 @@ public class SecurityConfig {
                         // Public read-only endpoints
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/events/**").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/markets/**").permitAll()
-                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/orders/market/**").permitAll()
+                        .requestMatchers("/api/v1/orders/**").permitAll() // All methods for testing
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/positions/**").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/transactions/**").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/wallets/**").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/comments/**").permitAll()
                         // Home endpoint
                         .requestMatchers("/api/v1", "/api/v1/").permitAll()

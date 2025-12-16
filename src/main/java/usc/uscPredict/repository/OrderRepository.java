@@ -25,6 +25,15 @@ public interface OrderRepository extends CrudRepository<@NonNull Order, @NonNull
     Set<Order> findByMarketIdAndState(@NonNull UUID marketId, @NonNull OrderState state);
 
     /**
+     * Retrieves all active orders (PENDING or PARTIALLY_FILLED) for a market.
+     * Used for order book display.
+     * @param marketId The market UUID
+     * @return Set of active orders
+     */
+    @Query("SELECT o FROM Order o WHERE o.marketId = ?1 AND o.state IN ('PENDING', 'PARTIALLY_FILLED')")
+    Set<Order> findActiveOrdersByMarketId(@NonNull UUID marketId);
+
+    /**
      * Retrieves all PENDING BUY orders for a market, sorted by price DESC (highest first).
      * Used for matching: buyers willing to pay more should be matched first.
      * @param marketId The market UUID
@@ -52,6 +61,32 @@ public interface OrderRepository extends CrudRepository<@NonNull Order, @NonNull
             @NonNull UUID marketId,
             @NonNull OrderSide side,
             @NonNull OrderState state
+    );
+
+    /**
+     * Retrieves all active BUY orders (PENDING or PARTIALLY_FILLED) for a market, sorted by price DESC.
+     * Used for matching: includes partially filled orders that still have remaining quantity.
+     * @param marketId The market UUID
+     * @param side The order side (BUY)
+     * @return List of active buy orders sorted by price descending
+     */
+    @Query("SELECT o FROM Order o WHERE o.marketId = ?1 AND o.side = ?2 AND o.state IN ('PENDING', 'PARTIALLY_FILLED') ORDER BY o.price DESC, o.createdAt ASC")
+    List<Order> findActiveOrdersByMarketIdAndSideOrderByPriceDesc(
+            @NonNull UUID marketId,
+            @NonNull OrderSide side
+    );
+
+    /**
+     * Retrieves all active SELL orders (PENDING or PARTIALLY_FILLED) for a market, sorted by price ASC.
+     * Used for matching: includes partially filled orders that still have remaining quantity.
+     * @param marketId The market UUID
+     * @param side The order side (SELL)
+     * @return List of active sell orders sorted by price ascending
+     */
+    @Query("SELECT o FROM Order o WHERE o.marketId = ?1 AND o.side = ?2 AND o.state IN ('PENDING', 'PARTIALLY_FILLED') ORDER BY o.price ASC, o.createdAt ASC")
+    List<Order> findActiveOrdersByMarketIdAndSideOrderByPriceAsc(
+            @NonNull UUID marketId,
+            @NonNull OrderSide side
     );
 
     /**

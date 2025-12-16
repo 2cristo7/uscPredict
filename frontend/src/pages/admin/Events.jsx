@@ -13,7 +13,7 @@ const EventForm = ({ event, onSave, onCancel, loading }) => {
   const [formData, setFormData] = useState({
     title: event?.title || '',
     description: event?.description || '',
-    status: event?.status || 'DRAFT',
+    state: event?.state || 'DRAFT',
   });
 
   const handleSubmit = (e) => {
@@ -38,9 +38,9 @@ const EventForm = ({ event, onSave, onCancel, loading }) => {
         rows={4}
       />
       <Select
-        label="Status"
-        value={formData.status}
-        onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+        label="State"
+        value={formData.state}
+        onChange={(e) => setFormData({ ...formData, state: e.target.value })}
         options={[
           { value: 'DRAFT', label: 'Draft' },
           { value: 'OPEN', label: 'Open' },
@@ -105,7 +105,7 @@ const Events = () => {
         await eventAPI.v1.patch(editingEvent.uuid, [
           { op: 'replace', path: '/title', value: formData.title },
           { op: 'replace', path: '/description', value: formData.description },
-          { op: 'replace', path: '/status', value: formData.status },
+          { op: 'replace', path: '/state', value: formData.state },
         ]);
       } else {
         await eventAPI.v1.create(formData);
