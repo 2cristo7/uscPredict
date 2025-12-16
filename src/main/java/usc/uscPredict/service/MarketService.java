@@ -478,6 +478,27 @@ public class MarketService {
     }
 
     /**
+     * Calculates the total trading volume for a market.
+     * Volume = sum of (executionPrice * filledQuantity) for all executed BUY orders.
+     * We only count BUY orders to avoid double-counting (each trade has a BUY and SELL).
+     *
+     * @param marketId The market UUID
+     * @return Total volume in currency units
+     */
+    public BigDecimal getMarketVolume(UUID marketId) {
+        List<Order> executedOrders = orderRepository.findExecutedOrdersByMarketIdOrderByUpdatedAt(marketId);
+
+        // Only count BUY orders to avoid double-counting
+        return executedOrders.stream()
+                .filter(o -> o.getSide() == OrderSide.BUY)
+                .map(o -> {
+                    BigDecimal price = o.getExecutionPrice() != null ? o.getExecutionPrice() : o.getPrice();
+                    return price.multiply(BigDecimal.valueOf(o.getFilledQuantity()));
+                })
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    /**
      * DTO for price history data points.
      */
     @Getter

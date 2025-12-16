@@ -239,12 +239,19 @@ const OrdersTable = ({ orders, onCancelOrder }) => {
 };
 
 // Positions Table Component
-const PositionsTable = ({ positions }) => {
+const PositionsTable = ({ positions, onDeletePosition }) => {
   const columns = [
     {
       key: 'market',
       header: 'Market',
-      render: (_, row) => row.marketName || 'Unknown',
+      render: (_, row) => (
+        <div className="flex items-center gap-2">
+          <span>{row.marketName || 'Unknown'}</span>
+          {row.marketStatus === 'SETTLED' && (
+            <Badge status="SETTLED" size="sm" />
+          )}
+        </div>
+      ),
     },
     {
       key: 'yesShares',
@@ -268,6 +275,9 @@ const PositionsTable = ({ positions }) => {
       key: 'currentValue',
       header: 'Current Value',
       render: (_, row) => {
+        if (row.marketStatus === 'SETTLED') {
+          return <span className="text-[#666666]">Settled</span>;
+        }
         const lastPrice = row.lastPrice || 0.5;
         const yesValue = (row.yesShares || 0) * lastPrice;
         const noValue = (row.noShares || 0) * (1 - lastPrice);
@@ -279,7 +289,7 @@ const PositionsTable = ({ positions }) => {
       key: 'valueIfYes',
       header: 'If YES Wins',
       render: (_, row) => {
-        // YES shares pay $1 each, NO shares pay $0
+        if (row.marketStatus === 'SETTLED') return '-';
         const value = row.yesShares || 0;
         return (
           <span className="text-[#22c55e]">
@@ -292,7 +302,7 @@ const PositionsTable = ({ positions }) => {
       key: 'valueIfNo',
       header: 'If NO Wins',
       render: (_, row) => {
-        // NO shares pay $1 each, YES shares pay $0
+        if (row.marketStatus === 'SETTLED') return '-';
         const value = row.noShares || 0;
         return (
           <span className="text-[#ef4444]">
@@ -313,6 +323,19 @@ const PositionsTable = ({ positions }) => {
         if (avgNo) parts.push(`N:${(avgNo * 100).toFixed(0)}c`);
         return parts.join(' / ');
       },
+    },
+    {
+      key: 'actions',
+      header: '',
+      render: (_, row) => row.marketStatus === 'SETTLED' && (
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => onDeletePosition(row.uuid)}
+        >
+          Delete
+        </Button>
+      ),
     },
   ];
 
@@ -385,7 +408,7 @@ const Profile = () => {
       const eventsMap = {};
       (eventsRes.data || []).forEach(e => { eventsMap[e.uuid] = e; });
 
-      // Enrich positions with lastPrice from market
+      // Enrich positions with lastPrice and status from market
       const enrichedPositions = (positionsRes.data || []).map(pos => {
         const market = marketsMap[pos.marketId];
         const event = market ? eventsMap[market.eventId] : null;
@@ -393,6 +416,7 @@ const Profile = () => {
         return {
           ...pos,
           marketName: event?.title || market?.outcome || 'Unknown',
+          marketStatus: market?.status || 'UNKNOWN',
           lastPrice,
         };
       });
@@ -431,6 +455,15 @@ const Profile = () => {
     }
   };
 
+  const handleDeletePosition = async (positionUuid) => {
+    try {
+      await positionAPI.v1.delete(positionUuid);
+      fetchData();
+    } catch (err) {
+      console.error('Failed to delete position:', err);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center py-12">
@@ -444,7 +477,7 @@ const Profile = () => {
       id: 'positions',
       label: 'Positions',
       count: positions.length,
-      content: <PositionsTable positions={positions} />,
+      content: <PositionsTable positions={positions} onDeletePosition={handleDeletePosition} />,
     },
     {
       id: 'orders',

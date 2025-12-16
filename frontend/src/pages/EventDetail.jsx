@@ -772,6 +772,22 @@ const UserPosition = ({ market, user, refreshKey }) => {
 // MARKET STATS
 // ============================================================================
 const MarketStats = ({ event, market }) => {
+  const [volume, setVolume] = useState(null);
+
+  useEffect(() => {
+    const fetchVolume = async () => {
+      if (!market?.uuid) return;
+      try {
+        const response = await marketAPI.v1.getVolume(market.uuid);
+        setVolume(response.data?.volume || 0);
+      } catch (err) {
+        console.error('Failed to fetch volume:', err);
+        setVolume(null);
+      }
+    };
+    fetchVolume();
+  }, [market?.uuid]);
+
   // Parse date in "dd-MM-yyyy HH:mm:ss" format (backend format)
   const parseBackendDate = (dateStr) => {
     if (!dateStr) return null;
@@ -800,11 +816,11 @@ const MarketStats = ({ event, market }) => {
   };
 
   const formatVolume = (vol) => {
-    if (vol === null || vol === undefined) return 'N/A';
+    if (vol === null || vol === undefined) return 'Loading...';
     if (vol === 0) return '$0';
     if (vol >= 1000000) return `$${(vol / 1000000).toFixed(1)}M`;
     if (vol >= 1000) return `$${(vol / 1000).toFixed(1)}K`;
-    return `$${vol.toFixed(0)}`;
+    return `$${parseFloat(vol).toFixed(2)}`;
   };
 
   return (
@@ -813,7 +829,7 @@ const MarketStats = ({ event, market }) => {
       <div className="space-y-3">
         <div className="flex justify-between">
           <span className="text-[#888888]">Volume</span>
-          <span className="text-white font-medium">{formatVolume(market?.volume)}</span>
+          <span className="text-white font-medium">{formatVolume(volume)}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-[#888888]">Created</span>

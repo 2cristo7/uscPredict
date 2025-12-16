@@ -222,6 +222,37 @@ public class MarketController {
     }
 
     /**
+     * GET /markets/{uuid}/volume
+     * Retrieves total trading volume for a market.
+     * @param uuid The market UUID
+     * @return 200 OK with volume
+     */
+    @GetMapping("/{uuid}/volume")
+    public ResponseEntity<VolumeResult> getMarketVolume(@PathVariable UUID uuid) {
+        java.math.BigDecimal volume = marketService.getMarketVolume(uuid);
+        return new ResponseEntity<>(new VolumeResult(volume), HttpStatus.OK);
+    }
+
+    /**
+     * Inner class for volume result response.
+     */
+    public static class VolumeResult {
+        private java.math.BigDecimal volume;
+
+        public VolumeResult(java.math.BigDecimal volume) {
+            this.volume = volume;
+        }
+
+        public java.math.BigDecimal getVolume() {
+            return volume;
+        }
+
+        public void setVolume(java.math.BigDecimal volume) {
+            this.volume = volume;
+        }
+    }
+
+    /**
      * Inner class for match result response.
      */
     public static class MatchResult {

@@ -10,7 +10,8 @@ import Spinner from '../../components/common/Spinner';
 
 const MarketForm = ({ market, events, onSave, onCancel, loading }) => {
   const [formData, setFormData] = useState({
-    eventUuid: market?.event?.uuid || '',
+    eventId: market?.eventId || market?.event?.uuid || '',
+    outcome: market?.outcome || 'YES/NO',
     status: market?.status || 'ACTIVE',
   });
 
@@ -23,10 +24,18 @@ const MarketForm = ({ market, events, onSave, onCancel, loading }) => {
     <form onSubmit={handleSubmit} className="space-y-4">
       <Select
         label="Event"
-        value={formData.eventUuid}
-        onChange={(e) => setFormData({ ...formData, eventUuid: e.target.value })}
+        value={formData.eventId}
+        onChange={(e) => setFormData({ ...formData, eventId: e.target.value })}
         options={events.map((e) => ({ value: e.uuid, label: e.title }))}
         placeholder="Select an event"
+        disabled={!!market}
+        required
+      />
+      <Input
+        label="Outcome"
+        value={formData.outcome}
+        onChange={(e) => setFormData({ ...formData, outcome: e.target.value })}
+        placeholder="YES/NO"
         disabled={!!market}
         required
       />
@@ -159,12 +168,16 @@ const Markets = () => {
           { op: 'replace', path: '/status', value: formData.status },
         ]);
       } else {
-        await marketAPI.v1.create({ eventUuid: formData.eventUuid });
+        await marketAPI.v1.create({
+          eventId: formData.eventId,
+          outcome: formData.outcome,
+          status: formData.status,
+        });
       }
       setShowModal(false);
       fetchData();
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to save market');
+      setError(err.response?.data?.message || err.response?.data || 'Failed to save market');
     } finally {
       setSaving(false);
     }
