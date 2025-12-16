@@ -178,6 +178,13 @@ const parseBackendDate = (dateStr) => {
 
 // Orders Table Component
 const OrdersTable = ({ orders, onCancelOrder }) => {
+  // Sort orders by createdAt descending (newest first)
+  const sortedOrders = [...orders].sort((a, b) => {
+    const dateA = parseBackendDate(a.createdAt);
+    const dateB = parseBackendDate(b.createdAt);
+    return dateB - dateA; // Descending order (newest first)
+  });
+
   const columns = [
     {
       key: 'marketName',
@@ -235,7 +242,7 @@ const OrdersTable = ({ orders, onCancelOrder }) => {
     },
   ];
 
-  return <Table columns={columns} data={orders} emptyMessage="No orders yet" />;
+  return <Table columns={columns} data={sortedOrders} emptyMessage="No orders yet" />;
 };
 
 // Positions Table Component
@@ -344,6 +351,13 @@ const PositionsTable = ({ positions, onDeletePosition }) => {
 
 // Transactions Table Component
 const TransactionsTable = ({ transactions }) => {
+  // Sort transactions by createdAt descending (newest first)
+  const sortedTransactions = [...transactions].sort((a, b) => {
+    const dateA = parseBackendDate(a.createdAt);
+    const dateB = parseBackendDate(b.createdAt);
+    return dateB - dateA; // Descending order (newest first)
+  });
+
   const columns = [
     {
       key: 'createdAt',
@@ -370,14 +384,9 @@ const TransactionsTable = ({ transactions }) => {
         );
       },
     },
-    {
-      key: 'description',
-      header: 'Description',
-      render: (value) => <span className="text-[#a0a0a0]">{value || '-'}</span>,
-    },
   ];
 
-  return <Table columns={columns} data={transactions} emptyMessage="No transactions yet" />;
+  return <Table columns={columns} data={sortedTransactions} emptyMessage="No transactions yet" />;
 };
 
 // Main Profile Component
