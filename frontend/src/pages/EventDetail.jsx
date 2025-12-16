@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { eventAPI, orderAPI, positionAPI, commentAPI } from '../services/api';
+import { eventAPI, orderAPI, positionAPI, commentAPI, marketAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { ensureArray } from '../utils/arrayHelpers';
 import Card from '../components/common/Card';
@@ -11,12 +11,96 @@ import Spinner from '../components/common/Spinner';
 import { getEventColor, getInitials } from './Home';
 
 // ============================================================================
-// PRICE CHART PLACEHOLDER
+// PRICE CHART - Real data from price-history endpoint
 // ============================================================================
-const PriceChart = ({ yesProb }) => {
+const PriceChart = ({ market, yesProb }) => {
+  const [priceHistory, setPriceHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [timeRange, setTimeRange] = useState('ALL');
+
+  useEffect(() => {
+    const fetchPriceHistory = async () => {
+      if (!market?.uuid) {
+        setLoading(false);
+        return;
+      }
+      try {
+        // Adjust bucket size based on time range
+        const bucketMinutes = timeRange === '1D' ? 15 : timeRange === '1W' ? 60 : timeRange === '1M' ? 240 : 60;
+        const response = await marketAPI.v1.getPriceHistory(market.uuid, bucketMinutes);
+        setPriceHistory(response.data || []);
+      } catch (err) {
+        console.error('Failed to fetch price history:', err);
+        setPriceHistory([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchPriceHistory();
+  }, [market?.uuid, timeRange]);
+
+  // Filter data based on time range
+  const getFilteredData = () => {
+    if (!priceHistory.length) return [];
+    const now = new Date();
+    const cutoff = new Date();
+    switch (timeRange) {
+      case '1D': cutoff.setDate(now.getDate() - 1); break;
+      case '1W': cutoff.setDate(now.getDate() - 7); break;
+      case '1M': cutoff.setMonth(now.getMonth() - 1); break;
+      default: return priceHistory;
+    }
+    return priceHistory.filter(p => new Date(p.timestamp) >= cutoff);
+  };
+
+  const filteredData = getFilteredData();
+  const hasData = filteredData.length > 0;
+
+  // Calculate chart dimensions
+  const chartWidth = 100;
+  const chartHeight = 100;
+  const padding = 2;
+
+  // Generate SVG path for the price line
+  const generatePath = () => {
+    if (!hasData) return '';
+    const prices = filteredData.map(p => p.price);
+    const minPrice = Math.min(...prices, 0);
+    const maxPrice = Math.max(...prices, 1);
+    const range = maxPrice - minPrice || 1;
+
+    const points = filteredData.map((point, i) => {
+      const x = padding + (i / (filteredData.length - 1 || 1)) * (chartWidth - 2 * padding);
+      const y = chartHeight - padding - ((point.price - minPrice) / range) * (chartHeight - 2 * padding);
+      return `${x},${y}`;
+    });
+
+    return `M ${points.join(' L ')}`;
+  };
+
+  // Generate area fill path
+  const generateAreaPath = () => {
+    if (!hasData) return '';
+    const prices = filteredData.map(p => p.price);
+    const minPrice = Math.min(...prices, 0);
+    const maxPrice = Math.max(...prices, 1);
+    const range = maxPrice - minPrice || 1;
+
+    const points = filteredData.map((point, i) => {
+      const x = padding + (i / (filteredData.length - 1 || 1)) * (chartWidth - 2 * padding);
+      const y = chartHeight - padding - ((point.price - minPrice) / range) * (chartHeight - 2 * padding);
+      return `${x},${y}`;
+    });
+
+    const firstX = padding;
+    const lastX = padding + (chartWidth - 2 * padding);
+    return `M ${firstX},${chartHeight - padding} L ${points.join(' L ')} L ${lastX},${chartHeight - padding} Z`;
+  };
+
+  const timeRanges = ['1D', '1W', '1M', 'ALL'];
+
   return (
     <Card className="relative overflow-hidden">
-      {/* Mock chart background */}
       <div className="h-48 relative">
         {/* Y-axis labels */}
         <div className="absolute left-0 top-0 bottom-0 w-8 flex flex-col justify-between text-xs text-[#666666] py-2">
@@ -36,33 +120,76 @@ const PriceChart = ({ yesProb }) => {
             ))}
           </div>
 
+          {/* Price chart SVG */}
+          {loading ? (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Spinner size="sm" />
+            </div>
+          ) : hasData ? (
+            <svg
+              viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+              preserveAspectRatio="none"
+              className="absolute inset-0 w-full h-full"
+            >
+              {/* Area fill */}
+              <path
+                d={generateAreaPath()}
+                fill="url(#areaGradient)"
+                opacity="0.3"
+              />
+              {/* Line */}
+              <path
+                d={generatePath()}
+                fill="none"
+                stroke="#22c55e"
+                strokeWidth="1.5"
+                vectorEffect="non-scaling-stroke"
+              />
+              {/* Gradient definition */}
+              <defs>
+                <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#22c55e" stopOpacity="0.4" />
+                  <stop offset="100%" stopColor="#22c55e" stopOpacity="0" />
+                </linearGradient>
+              </defs>
+            </svg>
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="text-center">
+                <svg className="w-8 h-8 mx-auto text-[#333333] mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
+                </svg>
+                <p className="text-[#555555] text-sm">No trading history yet</p>
+              </div>
+            </div>
+          )}
+
           {/* Current price line */}
           <div
-            className="absolute left-0 right-0 border-t-2 border-dashed border-[#22c55e]/50"
+            className="absolute left-0 right-0 border-t-2 border-dashed border-[#22c55e]/50 pointer-events-none"
             style={{ top: `${100 - yesProb}%` }}
           >
             <span className="absolute right-0 -top-3 bg-[#22c55e] text-white text-xs px-2 py-0.5 rounded">
               {yesProb}%
             </span>
           </div>
-
-          {/* Placeholder message */}
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-center">
-              <svg className="w-8 h-8 mx-auto text-[#333333] mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
-              </svg>
-              <p className="text-[#555555] text-sm">Price history coming soon</p>
-            </div>
-          </div>
         </div>
 
-        {/* X-axis labels */}
-        <div className="ml-10 flex justify-between text-xs text-[#666666] mt-2">
-          <span>1D</span>
-          <span>1W</span>
-          <span>1M</span>
-          <span>ALL</span>
+        {/* X-axis time range selector */}
+        <div className="ml-10 flex justify-between text-xs mt-2">
+          {timeRanges.map((range) => (
+            <button
+              key={range}
+              onClick={() => setTimeRange(range)}
+              className={`px-2 py-1 rounded transition-colors ${
+                timeRange === range
+                  ? 'bg-[#22c55e]/20 text-[#22c55e] font-medium'
+                  : 'text-[#666666] hover:text-white'
+              }`}
+            >
+              {range}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -799,15 +926,23 @@ const EventDetail = () => {
   const { id } = useParams();
   const { user, isAuthenticated } = useAuth();
   const [event, setEvent] = useState(null);
+  const [market, setMarket] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
-    const fetchEvent = async () => {
+    const fetchEventAndMarket = async () => {
       try {
-        const response = await eventAPI.v1.getById(id);
-        setEvent(response.data);
+        // Fetch event and markets in parallel
+        const [eventResponse, marketsResponse] = await Promise.all([
+          eventAPI.v1.getById(id),
+          marketAPI.v1.getByEventId(id),
+        ]);
+        setEvent(eventResponse.data);
+        // Get the first market (typically YES/NO market)
+        const markets = marketsResponse.data || [];
+        setMarket(markets[0] || null);
       } catch (err) {
         setError('Failed to load event');
         console.error(err);
@@ -815,7 +950,7 @@ const EventDetail = () => {
         setLoading(false);
       }
     };
-    fetchEvent();
+    fetchEventAndMarket();
   }, [id, refreshKey]);
 
   const handleOrderPlaced = () => {
@@ -841,7 +976,6 @@ const EventDetail = () => {
     );
   }
 
-  const market = event.markets?.[0];
   const yesProb = market?.lastPrice ? Math.round(market.lastPrice * 100) : 50;
 
   return (

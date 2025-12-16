@@ -204,7 +204,7 @@ export const transactionAPI = {
 export const commentAPI = {
   v1: {
     getByPostId: (postId) => api.get(`/v1/comments/post/${postId}`),
-    getByEventId: (eventId) => api.get(`/v1/comments/event/${eventId}`),
+    getByEventId: (eventId) => api.get(`/v1/comments/post/${eventId}`),
     create: (comment) => api.post('/v1/comments', comment),
     delete: (commentId) => api.delete(`/v1/comments/${commentId}`),
     patch: (id, operations) => api.patch(`/v1/comments/${id}`, operations),
