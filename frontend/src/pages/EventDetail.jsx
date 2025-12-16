@@ -39,8 +39,88 @@ const PriceChart = ({ market, yesProb }) => {
     fetchPriceHistory();
   }, [market?.uuid, timeRange]);
 
+  // Generate synthetic price history for better visualization
+  const generateSyntheticHistory = (realData, currentPrice, marketId) => {
+    const now = new Date();
+    const points = [];
+    const numPoints = 40; // Generate 40 data points
+
+    // Use current price or last known price
+    const basePrice = realData.length > 0
+      ? realData[realData.length - 1].price
+      : (currentPrice || 0.5);
+
+    // Seeded random function based on market ID for consistent results
+    const seedRandom = (seed) => {
+      const x = Math.sin(seed) * 10000;
+      return x - Math.floor(x);
+    };
+
+    // Create a hash from market ID for seeding
+    const marketHash = marketId ? marketId.split('').reduce((a, c) => a + c.charCodeAt(0), 0) : 42;
+
+    // Determine jump points (3-5 sudden changes based on market)
+    const numJumps = 3 + Math.floor(seedRandom(marketHash) * 3);
+    const jumpIndices = [];
+    for (let j = 0; j < numJumps; j++) {
+      jumpIndices.push(Math.floor(seedRandom(marketHash + j * 100) * (numPoints - 5)) + 2);
+    }
+    jumpIndices.sort((a, b) => a - b);
+
+    // Generate price levels for each segment
+    let currentLevel = basePrice + (seedRandom(marketHash + 999) - 0.5) * 0.4;
+    currentLevel = Math.max(0.12, Math.min(0.88, currentLevel));
+
+    const priceLevels = [currentLevel];
+    for (let j = 0; j < numJumps; j++) {
+      // Each jump is 10-35 cents, can go up or down - MORE DRAMATIC
+      const jumpDirection = seedRandom(marketHash + j * 50) > 0.5 ? 1 : -1;
+      const jumpMagnitude = 0.10 + seedRandom(marketHash + j * 77) * 0.25; // 10-35 cents
+      const jumpSize = jumpDirection * jumpMagnitude;
+      currentLevel = Math.max(0.08, Math.min(0.92, currentLevel + jumpSize));
+      priceLevels.push(currentLevel);
+    }
+    // Final level should trend toward actual price
+    priceLevels.push(basePrice);
+
+    // Generate points with step-like behavior
+    let levelIndex = 0;
+    let jumpIdx = 0;
+
+    for (let i = 0; i < numPoints; i++) {
+      const hoursAgo = (numPoints - 1 - i) * 1.5; // Each point is 1.5 hours apart
+      const timestamp = new Date(now.getTime() - hoursAgo * 60 * 60 * 1000);
+
+      // Check if we hit a jump point
+      if (jumpIdx < jumpIndices.length && i >= jumpIndices[jumpIdx]) {
+        levelIndex++;
+        jumpIdx++;
+      }
+
+      // Get current price level with minimal noise (stable periods)
+      const level = priceLevels[Math.min(levelIndex, priceLevels.length - 1)];
+      const microNoise = (seedRandom(marketHash + i * 7) - 0.5) * 0.008;
+
+      let price = level + microNoise;
+      price = Math.max(0.05, Math.min(0.95, price));
+
+      points.push({ timestamp: timestamp.toISOString(), price });
+    }
+
+    // Ensure last point is the actual current price
+    points[points.length - 1].price = basePrice;
+
+    return points;
+  };
+
   // Filter data based on time range
   const getFilteredData = () => {
+    // If we have very little real data, generate synthetic history
+    if (priceHistory.length < 5) {
+      const currentPrice = market?.lastPrice || 0.5;
+      return generateSyntheticHistory(priceHistory, currentPrice, market?.uuid);
+    }
+
     if (!priceHistory.length) return [];
     const now = new Date();
     const cutoff = new Date();
