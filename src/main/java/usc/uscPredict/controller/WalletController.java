@@ -1,6 +1,13 @@
 package usc.uscPredict.controller;
 
 import com.fasterxml.jackson.annotation.JsonView;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
@@ -22,6 +29,7 @@ import java.util.UUID;
  * Handles HTTP requests for wallet management and fund operations.
  * Base path: /api/v1/wallets
  */
+@Tag(name = "Wallets", description = "API de gestión de carteras y operaciones de fondos")
 @RestController
 @RequestMapping("/api/v1/wallets")
 @Validated
@@ -39,6 +47,14 @@ public class WalletController {
      * Retrieves all wallets (admin use).
      * @return 200 OK with list of wallets
      */
+    @Operation(
+            summary = "Listar todas las carteras",
+            description = "Obtiene una lista completa de todas las carteras de usuarios (uso administrativo)"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Lista de carteras obtenida exitosamente",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = Wallet.class)))
+    })
     @GetMapping
     public ResponseEntity<Set<Wallet>> getAllWallets() {
         Set<Wallet> wallets = walletService.getAllWallets();
@@ -51,8 +67,19 @@ public class WalletController {
      * @param uuid The wallet UUID
      * @return 200 OK with wallet, or 404 NOT FOUND
      */
+    @Operation(
+            summary = "Obtener cartera por ID",
+            description = "Busca y retorna una cartera específica utilizando su identificador UUID"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Cartera encontrada exitosamente",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = Wallet.class))),
+            @ApiResponse(responseCode = "404", description = "Cartera no encontrada", content = @Content)
+    })
     @GetMapping("/{uuid}")
-    public ResponseEntity<Wallet> getWalletById(@PathVariable UUID uuid) {
+    public ResponseEntity<Wallet> getWalletById(
+            @Parameter(description = "UUID de la cartera a buscar", required = true, example = "123e4567-e89b-12d3-a456-426614174000")
+            @PathVariable UUID uuid) {
         Wallet wallet = walletService.getWalletById(uuid);
         return ResponseEntity.ok(wallet);
     }
@@ -65,8 +92,18 @@ public class WalletController {
      * @param userId The user UUID
      * @return 200 OK with wallet
      */
+    @Operation(
+            summary = "Obtener cartera de usuario",
+            description = "Retorna la cartera de un usuario específico. Si la cartera no existe, se crea automáticamente"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Cartera obtenida o creada exitosamente",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = Wallet.class)))
+    })
     @GetMapping("/user/{userId}")
-    public ResponseEntity<Wallet> getWalletByUserId(@PathVariable UUID userId) {
+    public ResponseEntity<Wallet> getWalletByUserId(
+            @Parameter(description = "UUID del usuario", required = true, example = "123e4567-e89b-12d3-a456-426614174000")
+            @PathVariable UUID userId) {
         Wallet wallet = walletService.getWalletByUserId(userId);
         return ResponseEntity.ok(wallet);
     }
@@ -78,6 +115,16 @@ public class WalletController {
      * @param wallet The wallet data (JSON body)
      * @return 201 CREATED with created wallet, or 400/409 on error
      */
+    @Operation(
+            summary = "Crear cartera manualmente",
+            description = "Crea una nueva cartera de forma manual. NOTA: Las carteras normalmente se crean automáticamente al acceder a /wallets/user/{userId}"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Cartera creada exitosamente",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = Wallet.class))),
+            @ApiResponse(responseCode = "400", description = "Datos de entrada inválidos", content = @Content),
+            @ApiResponse(responseCode = "409", description = "Conflicto - La cartera ya existe", content = @Content)
+    })
     @PostMapping
     public ResponseEntity<Wallet> createWallet(@RequestBody @Valid @NonNull Wallet wallet) {
         Wallet created = walletService.createWallet(wallet);
@@ -91,6 +138,15 @@ public class WalletController {
      * @param request The deposit request
      * @return 200 OK with updated wallet
      */
+    @Operation(
+            summary = "Depositar fondos",
+            description = "Deposita fondos en la cartera de un usuario. Incrementa el balance disponible"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Depósito realizado exitosamente",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = Wallet.class))),
+            @ApiResponse(responseCode = "400", description = "Datos de entrada inválidos o monto negativo", content = @Content)
+    })
     @PostMapping("/deposit")
     public ResponseEntity<Wallet> deposit(@RequestBody @Valid DepositRequest request) {
         Wallet wallet = walletService.deposit(request.getUserId(), request.getAmount());
@@ -104,6 +160,15 @@ public class WalletController {
      * @param request The withdrawal request
      * @return 200 OK with updated wallet, or 400 if insufficient funds
      */
+    @Operation(
+            summary = "Retirar fondos",
+            description = "Retira fondos de la cartera de un usuario. Requiere saldo disponible suficiente"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Retiro realizado exitosamente",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = Wallet.class))),
+            @ApiResponse(responseCode = "400", description = "Fondos insuficientes o datos de entrada inválidos", content = @Content)
+    })
     @PostMapping("/withdraw")
     public ResponseEntity<Wallet> withdraw(@RequestBody @Valid WithdrawRequest request) {
         Wallet wallet = walletService.withdraw(request.getUserId(), request.getAmount());
@@ -116,8 +181,18 @@ public class WalletController {
      * @param userId The user UUID
      * @return 200 OK with balance info
      */
+    @Operation(
+            summary = "Obtener balance de usuario",
+            description = "Retorna información detallada del balance: disponible, bloqueado y total"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Balance obtenido exitosamente",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = BalanceInfo.class)))
+    })
     @GetMapping("/user/{userId}/balance")
-    public ResponseEntity<BalanceInfo> getUserBalance(@PathVariable UUID userId) {
+    public ResponseEntity<BalanceInfo> getUserBalance(
+            @Parameter(description = "UUID del usuario", required = true, example = "123e4567-e89b-12d3-a456-426614174000")
+            @PathVariable UUID userId) {
         Wallet wallet = walletService.getWalletByUserId(userId);
         BigDecimal total = walletService.getTotalBalance(userId);
 
@@ -137,8 +212,18 @@ public class WalletController {
      * @param uuid The wallet UUID
      * @return 204 NO CONTENT if deleted, or 404 NOT FOUND
      */
+    @Operation(
+            summary = "Eliminar cartera",
+            description = "Elimina permanentemente una cartera. ADVERTENCIA: Solo para desarrollo/pruebas"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Cartera eliminada exitosamente", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Cartera no encontrada", content = @Content)
+    })
     @DeleteMapping("/{uuid}")
-    public ResponseEntity<Void> deleteWallet(@PathVariable UUID uuid) {
+    public ResponseEntity<Void> deleteWallet(
+            @Parameter(description = "UUID de la cartera a eliminar", required = true, example = "123e4567-e89b-12d3-a456-426614174000")
+            @PathVariable UUID uuid) {
         boolean deleted = walletService.deleteWallet(uuid);
         if (deleted) {
             return new ResponseEntity<>(HttpStatus.NO_CONTENT);
